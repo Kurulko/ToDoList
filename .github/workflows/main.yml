@@ -22,3 +22,9 @@ jobs:
       # генерируем статические файлы
     - name: Publish .NET Core Project
       run: dotnet publish BlazorGitHubPagesDemo.csproj -c Release --output release --nologo
+      
+    - name: Uploading files to gh-pages branch
+      uses: JamesIves/github-pages-deploy-action@4.1.4
+      with:
+        branch: gh-pages
+        folder: release/wwwroot
