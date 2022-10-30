@@ -1,0 +1,34 @@
+﻿@page "/login"
+@layout AccountLayout
+@inject NavigationManager NavManager
+@inject CustomStateProvider auth
+@attribute [AllowAnonymous]
+
+<ShowError Error="@error">
+    <Account Mode="AccountMode.Login">
+        <FormValidator Model="model" OnValidSubmit="@HandleValidSubmit" Action="@AccountMode.Login.ToString()">
+            <InputTextValidator @bind-Value="model.Name" For="@(() => model.Name)" /><br />
+            <InputPasswordValidator @bind-Value="model.Password" For="@(() => model.Password)" /><br />
+            <InputCheckboxValidator @bind-Value="model.RememberMe" For="@(() => model.RememberMe)" /><br />
+        </FormValidator>
+    </Account>
+</ShowError>
+
+@code {
+    LoginModel model = new();
+    string? error;
+
+    async Task HandleValidSubmit(EditContext ec)
+    {
+        error = null;
+        try
+        {
+            await auth.Login(model);
+            NavManager.NavigateTo("/index");
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+}

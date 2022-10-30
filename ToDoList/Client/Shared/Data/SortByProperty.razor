@@ -1,0 +1,30 @@
+﻿@typeparam ModelType
+@typeparam TKey
+
+<span @onclick="SortData" class="click">
+    @ChildContent
+</span>
+
+@code {
+    [Parameter]
+    public RenderFragment ChildContent { get; set; }
+
+    [Parameter]
+    public IEnumerable<ModelType> Data { get; set; }
+
+    [Parameter]
+    public EventCallback<IEnumerable<ModelType>> DataChanged { get; set; }
+
+    [Parameter]
+    public Func<ModelType, TKey> SortDirection { get; set; }
+
+    [Parameter]
+    public Sort Sort { get; set; } = Sort.Ascending;
+
+    async Task SortData()
+    {
+        Sort = Sort == Sort.Ascending ? Sort.Descending : Sort.Ascending;
+        Data = (Sort == Sort.Ascending ? Data.OrderBy(SortDirection) : Data.OrderByDescending(SortDirection)).ToList();
+        await DataChanged.InvokeAsync(Data);
+    }
+}

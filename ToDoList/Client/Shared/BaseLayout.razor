@@ -1,0 +1,49 @@
+﻿@inject NavigationManager NavManager
+@inject CustomStateProvider Auth
+
+<div class="page">
+    <div class="sidebar">
+        <NavMenu Links="@Links"/>
+    </div>
+    <main>
+        <div class="top-row">
+            <AuthorizeView>
+                <Authorized>
+                    <NavLink class="btn btn-link" href="/user/details"> Hello, @context.User.Identity?.Name!</NavLink>
+                    @if(context.User.IsInRole(Roles.Admin))
+                    {
+                        <span @onclick="UsersDetails" class="click">
+                            <span class="oi oi-people" aria-hidden="true"></span>
+                        </span>
+                    }
+                    <button class="btn btn-link" @onclick="LogoutClick">Logout</button>
+                </Authorized>
+                <NotAuthorized>
+                    <NavLink class="nav-link btn btn-link" href="/register">Register</NavLink>
+                    <NavLink class="nav-link btn btn-link" href="/login">Login</NavLink>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+        <article class="content px-4">
+            @ChildContent
+        </article>
+    </main>
+</div>
+
+@code{
+
+    [Parameter]
+    public IEnumerable<(string cssClass, string href, string name)> Links { get; set; }
+
+    [Parameter]
+    public RenderFragment ChildContent { get; set; }
+
+    async Task LogoutClick()
+    {
+        NavManager.NavigateTo("/login");
+        await Auth.Logout();
+    }
+
+    async Task UsersDetails()
+        => NavManager.NavigateTo("/users");
+}

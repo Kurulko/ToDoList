@@ -1,0 +1,59 @@
+﻿@using ToDoList.Client.Extensions;
+
+<Loader IsLoading="isLoading">
+    @if (!string.IsNullOrEmpty(searchValue) || temporaryData.CountOrDefault() != 0)
+    {
+        <div class="row">
+            <div class="col-md-3"></div>
+            <div class="col-md-9">
+                <SearchFilter @bind-Models="@temporaryData" @bind-Search="@searchValue" Data="@ToDoList"
+                          FilterDirection="@((ToDoItem i) => i.Name)" Placeholder="Search by name" />
+                <InputSelectValidator @bind-Value="categoryId" For="@(() => categoryId)"
+                    Values="@ToDoList.Select(i => new SelectValue<long>(i.CategoryId, i.Category!.Name))" /><br />
+            </div>
+        </div>
+        <br />
+    }
+
+    <FilterTable RowData="@ToDoList" PageSize="7" @bind-TemporaryData="@temporaryData" Sorts="@sorts" >
+        <HeaderBodyEnd><th></th></HeaderBodyEnd>
+        <RowBody Context="m">
+            <td>@m.Name</td>
+            <td>@m.Category.Name</td>
+            <td>@m.Complication</td>
+            <td>@m.Priority</td>
+            <td>@m.Deadline.ToString("dd.MM.yyyy hh:mm")</td>
+            <td>
+                <NavLink href="@($"to-do-list/details/{m.Id}")" class="btn btn-outline-info">Details</NavLink>
+            </td>
+        </RowBody>
+    </FilterTable>
+</Loader>
+
+@code {
+    [Parameter]
+    public IEnumerable<ToDoItem> ToDoList { get; set; }
+
+    IEnumerable<ToDoItem> temporaryData = Enumerable.Empty<ToDoItem>();
+
+    IEnumerable<SortModel<ToDoItem>> sorts;
+
+    string? searchValue;
+    long categoryId;
+    bool isLoading = true;
+
+
+    protected override void OnParametersSet()
+    {
+        sorts = new List<SortModel<ToDoItem>>()
+        {
+            new(m => m.Name, "Name"),
+            new(m => m.CategoryId, "Category"),
+            new(m => m.Complication, "Compl"),
+            new(m => m.Priority, "Priority"),
+            new(m => m.Deadline, "Deadline"),
+        };
+        temporaryData = ToDoList;
+        isLoading = false;
+    }
+}

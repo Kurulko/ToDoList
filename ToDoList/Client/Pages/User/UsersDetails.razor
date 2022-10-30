@@ -1,0 +1,67 @@
+﻿@page "/users"
+@using ToDoList.Client.Extensions
+@using ToDoList.Client.Shared.Data
+@using ToDoList.Shared.Models.Db
+@using ToDoList.Shared.Services
+@inject IUserService IUser
+@inject IToDoItemService IToDoItem
+@attribute [Authorize(Roles = Roles.Admin)]
+
+<h3>Users</h3>
+<hr />
+<Loader IsLoading="isLoading">
+    @if (!string.IsNullOrEmpty(searchValue) || temporaryData.CountOrDefault() != 0)
+    {
+        <div class="row">
+            <div class="col-md-3"></div>
+            <div class="col-md-9">
+                <SearchFilter @bind-Models="temporaryData" @bind-Search="@searchValue" Data="@users"
+                          FilterDirection="@((User i) => i.UserName)" Placeholder="Search by name" />
+            </div>
+        </div>
+        <br />
+    }
+
+    <FilterTable RowData="@users" PageSize="7" @bind-TemporaryData="@temporaryData" Sorts="@sorts" >
+        <HeaderBodyEnd></HeaderBodyEnd>
+        <RowBody Context="u">
+            <td>@u.UserName</td>
+            <td>@u.Email</td>
+            <td>@u.DateTime.ToString("dd.MM.yyyy hh:mm")</td>
+            <td>@u.ToDoItems!.Where(t => !t.IsCompleted).Count()</td>
+            <td>@u.ToDoItems!.Where(t => t.IsCompleted).Count()</td>
+        </RowBody>
+    </FilterTable>
+</Loader>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authStateTask { get; set; }
+
+    IEnumerable<User> users { get; set; }
+
+    IEnumerable<User> temporaryData = Enumerable.Empty<User>();
+
+    IEnumerable<SortModel<User>> sorts;
+
+    string? searchValue;
+    bool isLoading = true;
+
+
+    protected override async Task OnParametersSetAsync()
+    {
+        sorts = new List<SortModel<User>>()
+        {
+            new(u => u.UserName, "Name"),
+            new(u => u.Email, "Email"),
+            new(u => u.DateTime, "DateTime"),
+            new(u => u.ToDoItems!.Where(t => !t.IsCompleted), "Outstanding ToDoItems"),
+            new(u => u.ToDoItems!.Where(t => t.IsCompleted), "Completed ToDoItems"),
+        };
+        users = await IUser.GetUsersAsync();
+        foreach (User user in users)
+            user.ToDoItems = (await IToDoItem.GetToDoItemsAsync(user.Id)).ToList();
+        temporaryData = users;
+        isLoading = false;
+    }
+}

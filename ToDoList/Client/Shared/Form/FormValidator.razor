@@ -1,0 +1,39 @@
+﻿@typeparam TypeModel
+
+@if(Model is null)
+{
+    <center>
+        <h1>Loading...</h1>
+        <div class="loader"></div>
+    </center>
+}
+else
+{
+    <EditForm Model="@Model" OnValidSubmit="@OnValidSubmit" class="form-group">
+        <DataAnnotationsValidator />
+        @ChildContent
+        <br />
+        <button class="btn btn-outline-primary">@Action</button>
+        @if(BackTo is not null)
+        {
+            <NavLink class="btn btn-outline-info" href="@BackTo">Back</NavLink>
+        }
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public TypeModel Model { get; set; }
+
+    [Parameter]
+    public EventCallback<EditContext> OnValidSubmit { get; set; }
+
+    [Parameter]
+    public RenderFragment ChildContent { get; set; }
+
+    [Parameter]
+    public string Action { get; set; } = string.Empty;
+
+    [Parameter]
+    public string BackTo { get; set; }
+}

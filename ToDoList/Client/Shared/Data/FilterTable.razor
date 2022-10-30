@@ -1,0 +1,50 @@
+﻿@typeparam RowType
+
+<Loader IsLoading="isLoading">
+    <TableTemplate RowData="@RowData" PageSize="@PageSize" @bind-TemporaryData="@TemporaryData" RowBody="@RowBody">
+        <Header>
+            <tr>
+                <th>№</th>
+                @foreach (SortModel<RowType> sort in Sorts)
+                {
+                    <th>
+                        <SortByProperty @bind-Data="@TemporaryData" SortDirection="@sort.Element">
+                                @sort.Name
+                        </SortByProperty>
+                    </th>
+                }
+                @HeaderBodyEnd
+            </tr>
+        </Header>
+    </TableTemplate>
+</Loader>
+
+@code {
+    [Parameter]
+    public RenderFragment HeaderBodyEnd { get; set; }
+
+    [Parameter]
+    public IEnumerable<SortModel<RowType>> Sorts { get; set; }
+
+    [Parameter]
+    public RenderFragment<RowType> RowBody { get; set; }
+
+    [Parameter]
+    public IEnumerable<RowType> RowData { get; set; }
+
+    [Parameter]
+    public int PageSize { get; set; }
+
+    [Parameter]
+    public IEnumerable<RowType> TemporaryData { get; set; }
+
+    [Parameter]
+    public EventCallback<IEnumerable<RowType>> TemporaryDataChanged { get; set; }
+
+    bool isLoading = true;
+    protected override void OnParametersSet()
+    {
+        TemporaryData = RowData;
+        isLoading = false;
+    }
+}

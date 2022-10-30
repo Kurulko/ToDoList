@@ -1,0 +1,64 @@
+﻿@typeparam RowType 
+@using ToDoList.Client.Extensions;
+
+<Loader IsLoading="isLoading">
+    @if (TemporaryData.CountOrDefault() == 0)
+    {
+        <center>
+            <h3>It's empty :(</h3>
+        </center>
+    }
+    else
+    {
+        <NavPages PageSize="@PageSize" Data="@TemporaryData">
+            <DataBody Context="currentPageData">
+                <table class="table table-hover table-bordered">
+                    <thead>
+                        @Header
+                    </thead>
+                    <tbody>
+                        @{
+                            int currentPage = currentPageData.CurrentPage;
+                            int i = (currentPage - 1) * PageSize + 1;
+                        }
+                        @foreach (RowType row in currentPageData.Models)
+                        {
+                            <tr>
+                                <td>@i</td>
+                                @RowBody(row)
+                            </tr>
+                            ++i;
+                        }
+                    </tbody>
+                </table>
+            </DataBody>
+        </NavPages>
+    }
+</Loader>
+
+@code {
+    [Parameter]
+    public RenderFragment Header { get; set; }
+
+    [Parameter]
+    public RenderFragment<RowType> RowBody { get; set; }
+
+    [Parameter]
+    public IEnumerable<RowType> RowData { get; set; }
+
+    [Parameter]
+    public int PageSize { get; set; }
+
+    [Parameter]
+    public IEnumerable<RowType> TemporaryData { get; set; }
+
+    [Parameter]
+    public EventCallback<IEnumerable<RowType>> TemporaryDataChanged { get; set; }
+
+    bool isLoading = true;
+    protected override void OnParametersSet()
+    {
+        TemporaryData = RowData;
+        isLoading = false;
+    }
+}

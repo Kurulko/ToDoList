@@ -1,0 +1,22 @@
+﻿<div class="row">
+    <div class="col-md-9">
+        <h3>@Mode</h3>
+        <hr />
+        @ChildContent
+    </div>
+    <div class="col-md-3">
+        <NavLink href="@($"/{OrMode.ToString().ToLower()}")" class="btn btn-outline-primary">@OrMode</NavLink>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public AccountMode Mode { get; set; }
+    public AccountMode OrMode { get; set; }
+
+    [Parameter]
+    public RenderFragment ChildContent { get; set; }
+
+    protected override void OnParametersSet()
+        => OrMode = Mode == AccountMode.Register ? AccountMode.Login : AccountMode.Register;
+}

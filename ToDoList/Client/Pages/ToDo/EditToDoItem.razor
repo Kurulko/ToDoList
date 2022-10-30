@@ -1,0 +1,77 @@
+﻿@page "/to-do-list/edit/{id:long}"
+@page "/to-do-list/create"
+@using ToDoList.Client.Extensions
+@inject NavigationManager NavManager
+@inject IToDoItemService IToDoItem
+@inject ICategoryService ICategory
+@attribute [Authorize]
+
+<h3>ToDoItem</h3>
+<hr />
+<h3>@mode</h3>
+<br />
+<Loader IsLoading="isLoading">
+    <ShowError Error="@error">
+        <FormValidator Model="toDoItem" OnValidSubmit="HandleValidSubmit" Action="@(mode.ToString())" BackTo="to-do-list">
+            <InputTextValidator @bind-Value="toDoItem.Name" For="@(() => toDoItem.Name)" /><br />
+            <InputSelectValidator @bind-Value="toDoItem.CategoryId" For="@(() => toDoItem.CategoryId)"
+                Values="@categories.Select(c => new SelectValue<long>(c.Id,c.Name))" /><br />
+            <InputSelectValidator @bind-Value="toDoItem.Priority" For="@(() => toDoItem.Priority)"
+                Values="@(Enum.GetValues(typeof(Priority)).Cast<Priority>().Select(p => new SelectValue<Priority>(p, p.ToString())))" /><br />
+            <InputDatetimeValidator @bind-Value="toDoItem.Deadline" For="@(() => toDoItem.Deadline)" /><br />
+            <InputNumberValidator @bind-Value="toDoItem.Complication" For="@(() => toDoItem.Complication)" /><br />
+            <InputCheckboxValidator @bind-Value="toDoItem.IsCompleted" For="@(() => toDoItem.IsCompleted)" /><br />
+        </FormValidator>
+    </ShowError>
+</Loader>
+
+@code {
+    string? error;
+    bool isLoading = true;
+
+    [Parameter]
+    public long Id { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> authStateTask { get; set; }
+    string? userId;
+
+    Mode mode => Id == 0 ? Mode.Create : Mode.Edit;
+
+    ToDoItem toDoItem = new();
+    IEnumerable<Category> categories;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        try
+        {
+            userId = (await authStateTask).User.GetUserId();
+            if (Id != 0)
+                toDoItem = await IToDoItem.GetToDoItemAsync(userId, Id);
+            categories = await ICategory.GetCategoriesAsync(userId);
+            isLoading = false;
+        }
+        catch
+        {
+            NavManager.NavigateTo("to-do-list");
+        }
+    }
+
+    async Task HandleValidSubmit()
+    {
+        error = null;
+        try
+        {
+            if (mode == Mode.Create)
+                await IToDoItem.AddToDoItemAsync(userId, toDoItem);
+            else
+                await IToDoItem.UpdateToDoItem(userId, toDoItem);
+
+            NavManager.NavigateTo("to-do-list");
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+}

@@ -1,0 +1,58 @@
+﻿@page "/user/details"
+@using ToDoList.Client.Extensions
+@using ToDoList.Shared.Models.Db
+@using ToDoList.Shared.Services
+@inject IUserService IUser
+@inject IToDoItemService IToDoItem
+@attribute [Authorize]
+
+<h3>User</h3>
+<hr />
+<h3>Details</h3>
+<br />
+<Loader IsLoading="isLoading">
+    <table class="table">
+        <tbody>
+            <tr>
+                <th>Name</th>
+                <td>@user.UserName</td>
+            </tr>
+            <tr>
+                <th>Email</th>
+                <td>@user.Email</td>
+            </tr>
+            <tr>
+                <th>Datetime registration</th>
+                <td>@user.DateTime</td>
+            </tr>
+            <tr>
+                <th>Outstanding ToDoItems</th>
+                <td>@toDoList.Where(t => !t.IsCompleted).Count()</td>
+            </tr>
+            <tr>
+                <th>Completed ToDoItems</th>
+                <td>@toDoList.Where(t => t.IsCompleted).Count()</td>
+            </tr>
+        </tbody>
+    </table>
+    <br />
+    <NavLink href="categories" class="btn btn-outline-info">Look at Categories</NavLink>
+</Loader>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authStateTask { get; set; }
+
+    bool isLoading = true;
+
+    User? user = new();
+    IEnumerable<ToDoItem> toDoList;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        string userId = (await authStateTask).User.GetUserId();
+        user = await IUser.GetUserAsync(userId);
+        toDoList = await IToDoItem.GetToDoItemsAsync(userId);
+        isLoading = false;
+    }
+}

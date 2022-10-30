@@ -1,0 +1,37 @@
+﻿@page "/register"
+@layout AccountLayout
+@using Microsoft.AspNetCore.Identity
+@inject NavigationManager NavManager
+@inject CustomStateProvider auth
+@attribute [AllowAnonymous]
+
+<ShowError Error="@error">
+    <Account Mode="AccountMode.Register">
+        <FormValidator Model="model" OnValidSubmit="@HandleValidSubmit" Action="@AccountMode.Register.ToString()">
+            <InputTextValidator @bind-Value="model.Name" For="@(() => model.Name)" /><br />
+            <InputEmailValidator @bind-Value="model.Email" For="@(() => model.Email)" /><br />
+            <InputPasswordValidator @bind-Value="model.Password" For="@(() => model.Password)" /><br />
+            <InputPasswordValidator @bind-Value="model.PasswordConfirm" For="@(() => model.PasswordConfirm)" /><br />
+            <InputCheckboxValidator @bind-Value="model.RememberMe" For="@(() => model.RememberMe)" /><br />
+        </FormValidator>
+    </Account>
+</ShowError>
+
+@code {
+    RegisterModel model = new();
+    string? error;
+
+    async Task HandleValidSubmit(EditContext ec)
+    {
+        error = null;
+        try
+        {
+            await auth.Register(model);
+            NavManager.NavigateTo("/index");
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+}

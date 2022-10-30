@@ -1,0 +1,22 @@
+﻿@inject NavigationManager NavManager
+@inject CustomStateProvider Auth
+
+<AuthorizeView>
+    <Authorized>
+        Hello, @context.User.Identity?.Name!
+        <button class="nav-link btn btn-link" @onclick="LogoutClick">Logout</button>
+    </Authorized>
+    <NotAuthorized>
+        <NavLink class="nav-link btn btn-link" href="/register">Register</NavLink>
+        <NavLink class="nav-link btn btn-link" href="/login">Login</NavLink>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    
+    async Task LogoutClick()
+    {
+        await Auth.Logout();
+        NavManager.NavigateTo("/login");
+    }
+}

@@ -1,0 +1,19 @@
+﻿@if(IsLoading)
+{
+    <center>
+        <h3>Loading...</h3>
+        <div class="loader"></div>
+    </center>
+}
+else
+{
+    @ChildContent
+}
+
+@code{
+    [Parameter]
+    public bool IsLoading { get; set; }
+
+    [Parameter]
+    public RenderFragment ChildContent { get; set; }
+}

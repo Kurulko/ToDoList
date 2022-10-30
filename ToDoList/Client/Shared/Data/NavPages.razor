@@ -1,0 +1,115 @@
+﻿@typeparam TypeModel
+
+@DataBody(new(CurrentPageData, currentPage))
+@if (totalPages != 1)
+{
+    int firstPage = 1, lastPage = totalPages;
+    int countOfCenterButtons = CountOfButtons - 2;
+    int previousPage = currentPage - 1, nextPage = currentPage + countOfCenterButtons - 2;
+    FirstAndLastCenterPages(out int firstCenterPage, out int lastCenterPage);
+
+
+    <button class="@(GetClass(firstPage))" @onclick="@(() => navPages(firstPage))">@firstPage</button>
+
+    if (previousPage > firstPage + 1 && totalPages > 5)
+    {
+        <strong>...</strong>
+    }
+
+    for (int i = firstCenterPage; i <= lastCenterPage; i++)
+    {
+        int local = i;
+        <button class="@(GetClass(local))" @onclick="@(() => navPages(local))">@i</button>
+    }
+
+    if (nextPage < lastPage - 1 && totalPages > 5)
+    {
+        <strong>...</strong>
+    }
+
+    <button class="@(GetClass(lastPage))" @onclick="@(() => navPages(lastPage))">@lastPage</button>
+}
+
+@code {
+    [Parameter]
+    public int PageSize { get; set; }
+
+    [Parameter]
+    public int CountOfButtons { get; set; } = 5;
+
+    [Parameter]
+    public RenderFragment<PageData> DataBody { get; set; }
+
+
+    [Parameter]
+    public IEnumerable<TypeModel> Data { get; set; }
+
+    protected IEnumerable<TypeModel> CurrentPageData { get; set; }
+
+
+    int totalPages = 1;
+    int currentPage = 1;
+
+    protected override void OnParametersSet()
+    {
+
+        if (PageSize > 0)
+            navPages(currentPage);
+        else
+            CurrentPageData = Data;
+
+        if (CountOfButtons > totalPages)
+            CountOfButtons = totalPages;
+    }
+
+    protected override bool ShouldRender()
+    {
+        navPages(currentPage);
+        return true;
+    }
+
+    void navPages(int page)
+    {
+        totalPages = (int)Math.Ceiling((double)Data.Count() / PageSize);
+        currentPage = page > totalPages ? 1 : page;
+        CurrentPageData = Data.Skip((currentPage - 1) * PageSize).Take(PageSize).ToList();
+    }
+
+    string GetClass(int page)
+        => page == currentPage ? "btn btn-primary" : "btn btn-outline-primary";
+
+    void FirstAndLastCenterPages(out int firstCenterPage, out int lastCenterPage)
+    {
+        int firstPage = 1, lastPage = totalPages;
+
+        if (CountOfButtons >= 5)
+        {
+            int countOfCenterButtons = CountOfButtons - 2;
+            int previousPage = currentPage - 1, nextPage = currentPage + countOfCenterButtons - 2;
+
+            if (currentPage <= firstPage + 1)
+            {
+                firstCenterPage = firstPage + 1;
+                lastCenterPage = firstPage + countOfCenterButtons;
+
+            }
+            else if (currentPage > 2 && currentPage < lastPage - 2)
+            {
+                firstCenterPage = previousPage;
+                lastCenterPage = nextPage;
+            }
+            else
+            {
+                firstCenterPage = lastPage - countOfCenterButtons;
+                lastCenterPage = lastPage - 1;
+            }
+        }
+        else
+        {
+            firstCenterPage = firstPage + 1;
+            lastCenterPage = lastPage - 1;
+        }
+    }
+
+    public record PageData(IEnumerable<TypeModel> Models, int CurrentPage);
+}

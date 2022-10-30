@@ -1,0 +1,29 @@
+﻿@using System.Linq.Expressions
+@typeparam TypeModel
+@inherits InputSelect<TypeModel>
+
+<InputValidator Disabled="Disabled" For="For">
+    <InputSelect @attributes="AdditionalAttributes" class="form-control" Value="@Value" 
+        ValueChanged="@ValueChanged" ValueExpression="@ValueExpression" required>
+        <option disabled selected>Choose one of the values</option>
+        @foreach(var value in Values)
+        {
+            <option value="@(value.Model)" selected="@(value.Model.Equals(Value))">@(value.Name)</option>
+        }
+    </InputSelect>
+</InputValidator>
+
+@code {
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    [Parameter]
+    public Expression<Func<TypeModel>> For { get; set; }
+
+    [Parameter]
+    public Func<string, TypeModel> ParseValueFromString { get; set; }
+
+    [Parameter]
+    public IEnumerable<SelectValue<TypeModel>> Values {get;set;} = Enumerable.Empty<SelectValue<TypeModel>>();
+}
+
