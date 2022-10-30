@@ -12,6 +12,7 @@ namespace ToDoList.Client.Services
 
         public async Task<CurrentUser> CurrentUserInfo()
             => (await new HttpClient().GetFromJsonAsync<CurrentUser>(baseApiUrl + "CurrentUserInfo"))!;
+
             //=> await httpClient.GetFromJsonAsync<CurrentUser>(baseApiUrl + "CurrentUserInfo");
         
         public async Task LoginUserAsync(LoginModel model)
