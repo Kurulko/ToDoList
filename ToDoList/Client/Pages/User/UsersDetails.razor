@@ -3,40 +3,51 @@
 @using ToDoList.Client.Shared.Data
 @using ToDoList.Shared.Models.Db
 @using ToDoList.Shared.Services
+@using System.Text.RegularExpressions
+@using Microsoft.AspNetCore.Identity;
 @inject IUserService IUser
+@inject IRoleService IRole
 @inject IToDoItemService IToDoItem
 @attribute [Authorize(Roles = Roles.Admin)]
 
 <h3>Users</h3>
 <hr />
+<NavLink href="users/create" class="btn btn-outline-primary">Create</NavLink>
+<br />
 <Loader IsLoading="isLoading">
-    @if (!string.IsNullOrEmpty(searchValue) || temporaryData.CountOrDefault() != 0)
+    @if (!string.IsNullOrEmpty(searchText) || users.CountOrDefault() != 0)
     {
         <div class="row">
             <div class="col-md-3"></div>
             <div class="col-md-9">
-                <SearchFilter @bind-Models="temporaryData" @bind-Search="@searchValue" Data="@users"
-                          FilterDirection="@((User i) => i.UserName)" Placeholder="Search by name" />
-            </div>
+                <SearchFilter @bind-SearchText="@searchText" Placeholder="@("Search by name")" />
+                <br />
+                <SearchSelectFilter @bind-SearchSelect="@searchSelect" Values="@SelectValues()"
+                    Parse="@(v => v)" TypeSelect="string" Placeholder="@("Select Role")"/>
+          </div>
         </div>
         <br />
     }
 
-    <FilterTable RowData="@users" PageSize="7" @bind-TemporaryData="@temporaryData" Sorts="@sorts" >
-        <HeaderBodyEnd></HeaderBodyEnd>
+    <FilterTable RowData="@temporaryData" PageSize="7" Sorts="@sorts">
+        <HeaderBodyEnd><th></th></HeaderBodyEnd>
         <RowBody Context="u">
             <td>@u.UserName</td>
             <td>@u.Email</td>
+            <td>@string.Join(",", roles[u.Id])</td>
             <td>@u.DateTime.ToString("dd.MM.yyyy hh:mm")</td>
             <td>@u.ToDoItems!.Where(t => !t.IsCompleted).Count()</td>
             <td>@u.ToDoItems!.Where(t => t.IsCompleted).Count()</td>
+            <td>
+                <NavLink href="@($"users/{u.Id}/details")" class="btn btn-info">Details</NavLink>
+            </td>
         </RowBody>
     </FilterTable>
 </Loader>
 
 @code {
     [CascadingParameter]
-    private Task<AuthenticationState> authStateTask { get; set; }
+    Task<AuthenticationState> authStateTask { get; set; }
 
     IEnumerable<User> users { get; set; }
 
@@ -44,24 +55,62 @@
 
     IEnumerable<SortModel<User>> sorts;
 
-    string? searchValue;
     bool isLoading = true;
 
+    Dictionary<string, IEnumerable<string>> roles = new();
+    IEnumerable<IdentityRole> allRoles = Enumerable.Empty<IdentityRole>();
 
     protected override async Task OnParametersSetAsync()
     {
+        allRoles = await IRole.GetRolesAsync();
+
+        users = await IUser.GetUsersAsync();
+        foreach (User user in users)
+            user.ToDoItems = (await IToDoItem.GetToDoItemsAsync(user.Id)).ToList();
+
+        foreach (User user in users)
+            roles[user.Id] = await IUser.GetRolesAsync(user.Id);
+
         sorts = new List<SortModel<User>>()
         {
             new(u => u.UserName, "Name"),
             new(u => u.Email, "Email"),
+            new(u => string.Join(",", roles[u.Id]), "Roles"),
             new(u => u.DateTime, "DateTime"),
-            new(u => u.ToDoItems!.Where(t => !t.IsCompleted), "Outstanding ToDoItems"),
-            new(u => u.ToDoItems!.Where(t => t.IsCompleted), "Completed ToDoItems"),
+            new(u => u.ToDoItems!.Where(t => !t.IsCompleted).Count(), "Outstanding ToDoItems"),
+            new(u => u.ToDoItems!.Where(t => t.IsCompleted).Count(), "Completed ToDoItems"),
         };
-        users = await IUser.GetUsersAsync();
-        foreach (User user in users)
-            user.ToDoItems = (await IToDoItem.GetToDoItemsAsync(user.Id)).ToList();
+
         temporaryData = users;
         isLoading = false;
     }
+
+    IEnumerable<SelectValue<string>> SelectValues()
+        => allRoles.Select(r => new SelectValue<string>(r.Name, r.Name));
+
+    string? searchText;
+    string? searchSelect;
+    protected override bool ShouldRender()
+    {
+        if(!string.IsNullOrEmpty(searchText))
+        {
+            temporaryData = (!string.IsNullOrEmpty(searchSelect) ? 
+                users.Where(m =>  IsValidForSearchSelect(m) && IsValidForSearchText(m)) :
+                users.Where(m => IsValidForSearchText(m))).ToList();
+        }
+        else
+        {
+            temporaryData = !string.IsNullOrEmpty(searchSelect) ? 
+               users.Where(IsValidForSearchSelect).ToList() :
+               users;
+        }
+        return true;
+    }
+    bool IsValidForSearchText(User user)
+    {
+        Regex reg = new($".*{searchText}.*", RegexOptions.IgnoreCase);
+        return reg.IsMatch(user.UserName);
+    }
+    bool IsValidForSearchSelect(User user)
+        => roles[user.Id].Contains(searchSelect);
 }

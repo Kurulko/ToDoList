@@ -1,26 +1,28 @@
-﻿@inject IToDoItemService IToDoItem
-@inject ICategoryService ICategory
-@page "/to-do-list"
-@using ToDoList.Client.Extensions
+﻿@page "/to-do-list"
+@page "/{UserId}/to-do-list"
 @attribute [Authorize]
 
 <h3>To Do List</h3>
 <hr />
-<NavLink href="to-do-list/create" class="btn btn-outline-primary">Create</NavLink>
+<NavLink href="@pathToCreate" class="btn btn-outline-primary">Create</NavLink>
 <br />
-<ToDoItems ToDoList="@toDoList" />
+<ToDoItems Filter="@Filter" UserId="@UserId"/>
 
 @code {
     [CascadingParameter]
     Task<AuthenticationState> authStateTask { get; set; }
 
-    IEnumerable<ToDoItem> toDoList; 
+    [Parameter]
+    public string UserId { get; set; }
+
+    bool isAdmin;
+    string pathForAdmin() => isAdmin ? UserId : string.Empty;
+    string pathToCreate => $"{pathForAdmin()}/to-do-list/create";
+
+    IEnumerable<ToDoItem> Filter(IEnumerable<ToDoItem> toDoList)
+        => toDoList.Where(m => !m.IsCompleted).ToList();
+
     protected override async Task OnParametersSetAsync()
-    {
-        string userId = (await authStateTask).User.GetUserId();
-        toDoList = (await IToDoItem.GetToDoItemsAsync(userId))
-            .Where(m => !m.IsCompleted).ToList();
-        foreach (ToDoItem item in toDoList)
-            item.Category = await ICategory.GetCategoryAsync(userId, item.CategoryId);
-    }
+        => isAdmin = (await authStateTask).User.IsInRole(Roles.Admin);
+
 }

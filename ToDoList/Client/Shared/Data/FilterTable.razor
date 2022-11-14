@@ -1,20 +1,22 @@
 ﻿@typeparam RowType
+@using ToDoList.Client.Shared.Data
+@using ToDoList.Client.Shared.Form
 
 <Loader IsLoading="isLoading">
-    <TableTemplate RowData="@RowData" PageSize="@PageSize" @bind-TemporaryData="@TemporaryData" RowBody="@RowBody">
+    <TableTemplate RowData="@TemporaryData" PageSize="@PageSize" RowBody="@RowBody">
         <Header>
-            <tr>
-                <th>№</th>
+        <tr>
+            <th>№</th>
                 @foreach (SortModel<RowType> sort in Sorts)
                 {
                     <th>
-                        <SortByProperty @bind-Data="@TemporaryData" SortDirection="@sort.Element">
-                                @sort.Name
+                        <SortByProperty @bind-Models="@TemporaryData" SortDirection="@sort.Element">
+                            @sort.Name
                         </SortByProperty>
                     </th>
                 }
                 @HeaderBodyEnd
-            </tr>
+        </tr>
         </Header>
     </TableTemplate>
 </Loader>
@@ -30,16 +32,12 @@
     public RenderFragment<RowType> RowBody { get; set; }
 
     [Parameter]
-    public IEnumerable<RowType> RowData { get; set; }
+    public IEnumerable<RowType> RowData { get; set; } = Enumerable.Empty<RowType>();
 
     [Parameter]
     public int PageSize { get; set; }
 
-    [Parameter]
-    public IEnumerable<RowType> TemporaryData { get; set; }
-
-    [Parameter]
-    public EventCallback<IEnumerable<RowType>> TemporaryDataChanged { get; set; }
+    IEnumerable<RowType> TemporaryData = Enumerable.Empty<RowType>();
 
     bool isLoading = true;
     protected override void OnParametersSet()

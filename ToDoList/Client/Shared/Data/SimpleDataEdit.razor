@@ -1,0 +1,166 @@
+﻿@inject NavigationManager NavManager
+@using ToDoList.Client.Extensions;
+@using System.Text.RegularExpressions
+@typeparam TypeModel where TypeModel : new()
+@typeparam TypeId
+
+
+@if (!isCreate)
+{
+    <button class="btn btn-outline-primary" @onclick="@(() => isCreate = !isCreate)">Create</button>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-9">
+            <ShowError Error="@error">
+                <FormValidator Model="model" Action="Create" BackTo="@null" OnValidSubmit="@(async () => {
+                            await Create();
+                            if(error is null)
+                                isCreate = !isCreate;
+                        })">
+                            @EditFragment(model)
+                </FormValidator>
+            </ShowError>
+            <button class="btn btn-outline-warning" @onclick="@(() => isCreate = !isCreate)">Cancel</button>
+        </div>
+    </div>
+}
+@ContentAfterCreateBeforeEdit
+<br /><br />
+<Loader IsLoading="isLoading">
+    <FilterTable RowData="@TemporaryData" PageSize="10" Sorts="@Sorts">
+        <HeaderBodyEnd><th></th></HeaderBodyEnd>
+        <RowBody Context="m">
+            <td>
+                @{
+                    TypeId id = GetId(m);
+                    string name = GetName(m);
+                }
+                @if (!isEdit[id])
+                {
+                   @name
+                }
+                else
+                {
+                    <ShowError Error="@error">
+                        <FormValidator Model="m" Action="Edit" BackTo="@null" OnValidSubmit="@(async () => {
+                            await Edit(m);
+                            if(error is not null)
+                                isEdit[id] = !isEdit[id];
+                        })">
+                                @EditFragment(m)
+                            </FormValidator>
+                    </ShowError>
+                    <button class="btn btn-outline-warning" @onclick="@(() => isEdit[id] = !isEdit[id])">Cancel</button>
+                }
+            </td>
+            <td>
+                @if (!isEdit[id])
+                {
+                    <button class="btn btn-outline-warning" @onclick="@(() => isEdit[id] = !isEdit[id])">
+                        Edit
+                    </button>
+                }
+                <button class="btn btn-outline-danger" @onclick="@(async() => await Delete(id))">
+                    Delete
+                </button>
+            </td>
+        </RowBody>
+    </FilterTable>
+</Loader>
+
+@code {
+    [Parameter]
+    public RenderFragment<TypeModel> EditFragment { get; set; }
+
+    [Parameter]
+    public RenderFragment ContentAfterCreateBeforeEdit { get; set; }
+
+    [Parameter]
+    public Func<Task<IEnumerable<TypeModel>>> SetModelsAsync { get; set; }
+
+    [Parameter]
+    public IEnumerable<TypeModel> TemporaryData { get; set; } = Enumerable.Empty<TypeModel>();
+    
+    [Parameter]
+    public IEnumerable<TypeModel> Models { get; set; } = Enumerable.Empty<TypeModel>();
+    [Parameter]
+    public EventCallback<IEnumerable<TypeModel>> ModelsChanged { get; set; }
+
+    [Parameter]
+    public Func<TypeModel, Task> EditModelHandle { get; set; }
+    [Parameter]
+    public Func<TypeModel, Task> CreateModelHandle { get; set; }
+    [Parameter]
+    public Func<TypeId, Task> DeleteModelHandle { get; set; }
+
+    [Parameter]
+    public Func<TypeModel, TypeId> GetId { get; set; }
+    [Parameter]
+    public Func<TypeModel, string> GetName { get; set; }
+
+    bool isLoading = true;
+    string? error;
+
+    [Parameter]
+    public IEnumerable<SortModel<TypeModel>> Sorts { get; set; } = Enumerable.Empty<SortModel<TypeModel>>();
+
+    protected override void OnParametersSet()
+    {
+        isEdit = Models.ToDictionary(m => GetId(m), m => false);
+        isLoading = false;
+    }
+
+    async Task SetDataAsync()
+    {
+        Models = await SetModelsAsync();
+        await ModelsChanged.InvokeAsync(Models);
+        isEdit = Models.ToDictionary(m => GetId(m), m => false);
+    }
+
+    Dictionary<TypeId, bool> isEdit = new();
+    async Task Edit(TypeModel model)
+    {
+        error = null;
+        try
+        {   
+            await EditModelHandle(model);
+            await SetDataAsync();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+
+    bool isCreate = false;
+    TypeModel model = new();
+    async Task Create()
+    {
+        error = null;
+        try
+        {
+            await CreateModelHandle(model);
+            model = new();
+            await SetDataAsync();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+
+    async Task Delete(TypeId id)
+    {
+        try
+        {
+            await DeleteModelHandle(id);
+            await SetDataAsync();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+}

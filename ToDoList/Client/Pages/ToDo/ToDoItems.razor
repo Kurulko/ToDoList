@@ -1,49 +1,66 @@
-﻿@using ToDoList.Client.Extensions;
+﻿@using System.Text.RegularExpressions
+@using ToDoList.Client.Extensions
+@inject IToDoItemService IToDoItem
+@inject ICategoryService ICategory
 
 <Loader IsLoading="isLoading">
-    @if (!string.IsNullOrEmpty(searchValue) || temporaryData.CountOrDefault() != 0)
+    @if (!string.IsNullOrEmpty(searchText) || searchSelect != 0 || temporary.CountOrDefault() != 0)
     {
         <div class="row">
             <div class="col-md-3"></div>
             <div class="col-md-9">
-                <SearchFilter @bind-Models="@temporaryData" @bind-Search="@searchValue" Data="@ToDoList"
-                          FilterDirection="@((ToDoItem i) => i.Name)" Placeholder="Search by name" />
-                <InputSelectValidator @bind-Value="categoryId" For="@(() => categoryId)"
-                    Values="@ToDoList.Select(i => new SelectValue<long>(i.CategoryId, i.Category!.Name))" /><br />
-            </div>
+                <SearchFilter @bind-SearchText="@searchText" Placeholder="@("Search by name")" />
+                <br />
+                <SearchSelectFilter @bind-SearchSelect="searchSelect" Values="@(SelectValues())"
+                    Parse="@(value => long.Parse(value))" TypeSelect="long" Placeholder="@("Select Category")"/>
+          </div>
         </div>
         <br />
     }
 
-    <FilterTable RowData="@ToDoList" PageSize="7" @bind-TemporaryData="@temporaryData" Sorts="@sorts" >
+    <FilterTable RowData="@temporary" PageSize="7" Sorts="@sorts">
         <HeaderBodyEnd><th></th></HeaderBodyEnd>
         <RowBody Context="m">
             <td>@m.Name</td>
-            <td>@m.Category.Name</td>
+            <td>@m.Category!.Name</td>
             <td>@m.Complication</td>
             <td>@m.Priority</td>
             <td>@m.Deadline.ToString("dd.MM.yyyy hh:mm")</td>
             <td>
-                <NavLink href="@($"to-do-list/details/{m.Id}")" class="btn btn-outline-info">Details</NavLink>
+                <NavLink href="@(PathToDetails(m.Id))" class="btn btn-outline-info">Details</NavLink>
             </td>
         </RowBody>
     </FilterTable>
 </Loader>
 
 @code {
+    [CascadingParameter]
+    Task<AuthenticationState> authStateTask { get; set; }
+
     [Parameter]
-    public IEnumerable<ToDoItem> ToDoList { get; set; }
+    public Func<IEnumerable<ToDoItem>, IEnumerable<ToDoItem>> Filter { get; set; }
 
-    IEnumerable<ToDoItem> temporaryData = Enumerable.Empty<ToDoItem>();
+    [Parameter]
+    public string UserId { get; set; }
 
-    IEnumerable<SortModel<ToDoItem>> sorts;
+    IEnumerable<SortModel<ToDoItem>> sorts = Enumerable.Empty<SortModel<ToDoItem>>();
 
-    string? searchValue;
-    long categoryId;
+    IEnumerable<ToDoItem> toDoList { get; set; } = Enumerable.Empty<ToDoItem>();
+    IEnumerable<ToDoItem> temporary { get; set; } = Enumerable.Empty<ToDoItem>();
+
+    IEnumerable<Category> categories { get; set; } = Enumerable.Empty<Category>();
+
+    string? searchText;
+    long searchSelect;
+
     bool isLoading = true;
+    bool isAdmin;
+    
+    string pathForAdmin() => isAdmin ? UserId : string.Empty;
+    string PathToDetails(long toDoItemId)
+        => $"{pathForAdmin()}/to-do-list/details/{toDoItemId}";
 
-
-    protected override void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
         sorts = new List<SortModel<ToDoItem>>()
         {
@@ -53,7 +70,48 @@
             new(m => m.Priority, "Priority"),
             new(m => m.Deadline, "Deadline"),
         };
-        temporaryData = ToDoList;
+
+        var claims = (await authStateTask).User;
+        isAdmin = claims.IsInRole(Roles.Admin);
+
+        if(!isAdmin)
+         UserId = (await authStateTask).User.GetUserId();
+
+        toDoList = Filter(await IToDoItem.GetToDoItemsAsync(UserId));
+        foreach (ToDoItem item in toDoList)
+            item.Category = await ICategory.GetCategoryAsync(UserId, item.CategoryId);
+
+        categories = await ICategory.GetCategoriesAsync(UserId);
+
+        temporary = toDoList;
         isLoading = false;
     }
+
+    IEnumerable<SelectValue<long>> SelectValues()
+        => categories.Select(c => new SelectValue<long>(c.Id, c.Name));
+
+    protected override bool ShouldRender()
+    {
+        if(!string.IsNullOrEmpty(searchText))
+        {
+            temporary = (searchSelect != 0 ? 
+                toDoList.Where(m =>  IsValidForSearchSelect(m) && IsValidForSearchText(m)) :
+                toDoList.Where(m => IsValidForSearchText(m))).ToList();
+        }
+        else
+        {
+            temporary = searchSelect != 0 ? 
+               toDoList.Where(IsValidForSearchSelect).ToList() :
+               toDoList;
+        }
+        return true;
+    }
+
+    bool IsValidForSearchText(ToDoItem item)
+    {
+        Regex reg = new($".*{searchText}.*", RegexOptions.IgnoreCase);
+        return reg.IsMatch(item.Name);
+    } 
+    bool IsValidForSearchSelect(ToDoItem item)
+        => item.CategoryId == searchSelect;
 }

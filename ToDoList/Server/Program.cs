@@ -8,17 +8,22 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.OpenApi.Models;
 using ToDoList.Server.Initializer;
 using ToDoList.Shared.Services;
+using System.Security.Claims;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+ConfigurationManager config = builder.Configuration;
 
 IServiceCollection services = builder.Services;
 
-string connection = builder.Configuration.GetConnectionString("DefaultConnection");
-services.AddDbContext<ToDoListContext>(opts => opts.UseSqlServer(connection));
+string connection = config.GetConnectionString("DefaultConnection");
+services.AddDbContext<ToDoListContext>(opts =>
+{
+    opts.UseSqlServer(connection);
+    opts.EnableSensitiveDataLogging();
+});
 
 services.AddIdentity<User, IdentityRole>().AddEntityFrameworkStores<ToDoListContext>();
-services.ConfigureApplicationCookie(opts =>
-{
+services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(opts => {
     opts.Cookie.HttpOnly = false;
     opts.Events.OnRedirectToLogin = context =>
     {
@@ -31,6 +36,7 @@ services.AddScoped<IAuthService, AuthManager>();
 services.AddScoped<IToDoItemService, ToDoItemManager>();
 services.AddScoped<IUserService, UsersManager>();
 services.AddScoped<ICategoryService, CategoryManager>();
+services.AddScoped<IRoleService, RolesManager>();
 
 services.AddControllers().AddNewtonsoftJson();
 services.AddSwaggerGen();
@@ -60,9 +66,14 @@ app.UseRouting();
 using (IServiceScope serviceScope = app.Services.CreateScope())
 {
     IServiceProvider serviceProvider = serviceScope.ServiceProvider;
-    var userManager = serviceProvider.GetRequiredService<UserManager<User>>();
+
     var roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-    await RoleInitializer.InitializeAsync(userManager, roleManager);
+    await RoleInitializer.InitializeAsync(roleManager);
+
+    string adminName = config.GetValue<string>("Admin:Name");
+    string adminPassword = config.GetValue<string>("Admin:Password");
+    var userManager = serviceProvider.GetRequiredService<UserManager<User>>();
+    await UsersInitializer.AdminInitializeAsync(userManager, adminName, adminPassword);
 }
 
 app.UseAuthentication();
@@ -72,3 +83,4 @@ app.MapControllers();
 app.MapFallbackToFile("index.html");
 
 app.Run();
+

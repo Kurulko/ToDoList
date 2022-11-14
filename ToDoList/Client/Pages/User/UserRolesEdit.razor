@@ -1,0 +1,98 @@
+﻿@page "/users/{UserId}/edit-roles"
+@using ToDoList.Client.Extensions
+@using Microsoft.AspNetCore.Identity;
+@inject NavigationManager NavManager
+@inject IUserService IUser
+@inject IRoleService IRole
+@attribute [Authorize]
+
+<h3>User</h3>
+<hr />
+<h3>Edit Roles</h3>
+<br />
+<Loader IsLoading="isLoading">
+    <div class="row">
+        <div class="col-md-9">
+            <div class="row">
+                <div class="col-md-4">Id:</div>
+                <div class="col-md-8">@UserId</div>
+            </div>
+            <div class="row">
+                <div class="col-md-4">Name:</div>
+                <div class="col-md-8">@name</div>
+            </div>
+            <div class="row">
+                <div class="col-md-4">Roles:</div>
+                <div class="col-md-8">@string.Join(",", userRoles)</div>
+            </div>
+        </div>
+    </div>
+    <br />
+    <ShowError Error="@error">
+        <FilterTable RowData="@allRoles" PageSize="10" Sorts="@sorts">
+            <HeaderBodyEnd><th></th></HeaderBodyEnd>
+            <RowBody Context="r">
+                <td>@r.Name</td>
+                <td>
+                    <input type="checkbox" checked="@IsUserRole(r.Name)" 
+                        @onclick="@(async () => await ChangeUserRole(r.Name))">
+                </td>
+            </RowBody>
+        </FilterTable>
+    </ShowError>
+</Loader>
+<NavLink href="@backTo" class="btn btn-info">Back</NavLink>
+
+@code {
+    string? error;
+    string? name;
+    bool isLoading = true;
+
+    [Parameter]
+    public string UserId { get; set; }
+    
+    [CascadingParameter]
+    Task<AuthenticationState> authStateTask { get; set; }
+
+    IEnumerable<IdentityRole> allRoles = Enumerable.Empty<IdentityRole>();
+    IEnumerable<string> userRoles = Enumerable.Empty<string>();
+
+    IEnumerable<SortModel<IdentityRole>> sorts = new List<SortModel<IdentityRole>>() { new(u => u.Name, "Roles") };
+
+    string backTo => $"/users/{UserId}/details";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        try
+        {
+            name = (await authStateTask).User.Identity.Name;
+            await SetUserRoles();
+            allRoles = await IRole.GetRolesAsync();
+            isLoading = false;
+        }
+        catch
+        {
+            NavManager.NavigateTo(backTo);
+        }
+    }
+    async Task SetUserRoles()
+        => userRoles = await IUser.GetRolesAsync(UserId);
+
+    bool IsUserRole(string role)
+        => userRoles.Contains(role);
+
+    async Task ChangeUserRole(string role)
+    {
+        try{
+            error = null;
+            if(IsUserRole(role))
+                await IUser.DeleteRoleFromUserAsync(UserId, role);
+            else
+                await IUser.AddRoleToUserAsync(new(UserId, role));
+        }
+        catch(Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+}

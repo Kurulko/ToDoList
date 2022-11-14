@@ -1,0 +1,46 @@
+﻿@using ToDoList.Client.Shared.Data
+@using ToDoList.Client.Extensions;
+@typeparam TypeSelect
+
+<select class="form-control" @onchange="ChangeValue">
+    <option selected disabled>@Placeholder</option>
+    <option selected="@isAll" value="">All</option>
+    @foreach (var value in Values)
+    {
+        <option value="@value.Model" selected="@(value.Model.Equals(SearchSelect))">@value.Name</option>
+    }
+</select>
+
+@code {
+    [Parameter]
+    public IEnumerable<SelectValue<TypeSelect>> Values { get; set; } = Enumerable.Empty<SelectValue<TypeSelect>>();
+
+    [Parameter]
+    public TypeSelect SearchSelect { get; set; }
+
+    [Parameter]
+    public string Placeholder { get; set; }
+
+    [Parameter]
+    public EventCallback<TypeSelect> SearchSelectChanged { get; set; }
+
+    [Parameter]
+    public Func<string, TypeSelect> Parse { get; set; }
+
+    bool isAll;
+    async Task ChangeValue(ChangeEventArgs e)
+    {
+        string strValue = e.Value!.ToString();
+        TypeSelect? value;
+        if (string.IsNullOrEmpty(strValue))
+        {
+            isAll = true;
+            value = default;
+        }
+        else
+        {
+            value = Parse(strValue);
+        }
+        await SearchSelectChanged.InvokeAsync(value);
+    }
+}

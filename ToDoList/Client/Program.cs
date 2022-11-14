@@ -19,6 +19,7 @@ IServiceCollection services = builder.Services;
 services.AddScoped<IAuthService, AuthManager>();
 services.AddScoped<IToDoItemService, ToDoItemManager>();
 services.AddScoped<ICategoryService, CategoryManager>();
+services.AddScoped<IRoleService, RolesManager>();
 services.AddScoped<IUserService, UsersManager>();
 
 services.AddOptions();

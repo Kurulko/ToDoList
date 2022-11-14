@@ -1,5 +1,7 @@
 ﻿@inject NavigationManager NavManager
 @inject CustomStateProvider Auth
+@inject IUserService IUser
+@using ToDoList.Client.Extensions;
 
 <div class="page">
     <div class="sidebar">
@@ -9,13 +11,7 @@
         <div class="top-row">
             <AuthorizeView>
                 <Authorized>
-                    <NavLink class="btn btn-link" href="/user/details"> Hello, @context.User.Identity?.Name!</NavLink>
-                    @if(context.User.IsInRole(Roles.Admin))
-                    {
-                        <span @onclick="UsersDetails" class="click">
-                            <span class="oi oi-people" aria-hidden="true"></span>
-                        </span>
-                    }
+                    <NavLink class="btn btn-link" href="/user/details"> Hello, @name!</NavLink>
                     <button class="btn btn-link" @onclick="LogoutClick">Logout</button>
                 </Authorized>
                 <NotAuthorized>
@@ -31,6 +27,8 @@
 </div>
 
 @code{
+    [CascadingParameter]
+    Task<AuthenticationState> authStateTask { get; set; }
 
     [Parameter]
     public IEnumerable<(string cssClass, string href, string name)> Links { get; set; }
@@ -44,6 +42,11 @@
         await Auth.Logout();
     }
 
-    async Task UsersDetails()
-        => NavManager.NavigateTo("/users");
+    string? name;
+    protected override async Task OnParametersSetAsync()
+    {
+        var claims = (await authStateTask).User;
+        if(claims.Identity.IsAuthenticated)
+            name = (await IUser.GetUserAsync(claims.GetUserId())).UserName;
+    }
 }

@@ -1,0 +1,97 @@
+﻿@page "/user/edit"
+@page "/users/create"
+@page "/users/{UserId}/edit"
+@using System.ComponentModel.DataAnnotations
+@using ToDoList.Client.Extensions
+@inject NavigationManager NavManager
+@inject IUserService IUser 
+@attribute [Authorize]
+
+<h3>User</h3>
+<hr />
+<h3>Edit</h3>
+<br />
+<Loader IsLoading="isLoading">
+    <ShowError Error="@error">
+        <FormValidator Model="user" OnValidSubmit="HandleValidSubmit" Action="Edit" BackTo="@BackTo()">
+            @if(isAdmin && mode == Mode.Edit)
+            {
+                <InputTextValidator @bind-Value="user.Id" For="@(() => user.Id)" Disabled="true"/><br />
+            }
+            <InputTextValidator @bind-Value="user.UserName" For="@(() => user.UserName)" /><br />
+            <InputEmailValidator @bind-Value="user.Email" For="@(() => user.Email)" /><br />
+            @if(isAdmin && mode == Mode.Edit)
+            {
+                <InputDatetimeValidator @bind-Value="user.DateTime" For="@(() => user.DateTime)"/><br />
+            }
+        </FormValidator>
+    </ShowError>
+</Loader>
+
+@code {
+    string? error;
+    bool isLoading = true;
+
+    [CascadingParameter]
+    Task<AuthenticationState> authStateTask { get; set; }
+
+    User user = new();
+
+    [Parameter]
+    public string UserId { get; set; }
+
+    bool isAdmin;
+
+    string BackTo()
+    {
+        string backTo;
+        if (mode == Mode.Edit)
+            backTo = isAdmin ? $"/users/{UserId}/details" : "/user/details";
+        else
+            backTo = "/users";
+        return backTo;
+    }
+
+    Mode mode => isAdmin && string.IsNullOrEmpty(UserId) ? Mode.Create : Mode.Edit;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        try
+        {
+            var claims = (await authStateTask).User;
+            isAdmin = claims.IsInRole(Roles.Admin);
+
+            if(mode == Mode.Edit)
+            {
+                if(!isAdmin)
+                    UserId = claims.GetUserId();
+                user = await IUser.GetUserAsync(UserId);
+            }
+
+            isLoading = false;
+        }
+        catch
+        {
+            NavManager.NavigateTo(BackTo());
+        }
+    }
+
+    async Task HandleValidSubmit()
+    {
+        error = null;
+        try
+        {
+            if (mode == Mode.Create)
+                await IUser.CreateUserAsync(user);
+            else
+                await IUser.UpdateUserAsync(user);
+
+            NavManager.NavigateTo(BackTo());
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+
+}

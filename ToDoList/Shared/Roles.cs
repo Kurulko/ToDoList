@@ -4,11 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ToDoList.Shared
+namespace ToDoList.Shared;
+
+public struct Roles
 {
-    public struct Roles
-    {
-        public const string Admin = "Admin";
-        public const string User = "User";
-    }
+    public const string Admin = "Admin";
+    public const string User = "User";
 }

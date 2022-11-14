@@ -1,7 +1,9 @@
 ﻿@page "/user/details"
+@page "/users/{UserId}/details"
 @using ToDoList.Client.Extensions
 @using ToDoList.Shared.Models.Db
 @using ToDoList.Shared.Services
+@inject NavigationManager NavManager
 @inject IUserService IUser
 @inject IToDoItemService IToDoItem
 @attribute [Authorize]
@@ -13,6 +15,13 @@
 <Loader IsLoading="isLoading">
     <table class="table">
         <tbody>
+            @if(isAdmin)
+            {
+                <tr>
+                    <th>Id</th>
+                    <td>@user.Id</td>
+                </tr>
+            }
             <tr>
                 <th>Name</th>
                 <td>@user.UserName</td>
@@ -21,6 +30,13 @@
                 <th>Email</th>
                 <td>@user.Email</td>
             </tr>
+            @if(isAdmin)
+            {
+                <tr>
+                    <th>Roles</th>
+                    <td>@string.Join(",", roles)</td>
+                </tr>
+            }
             <tr>
                 <th>Datetime registration</th>
                 <td>@user.DateTime</td>
@@ -36,23 +52,69 @@
         </tbody>
     </table>
     <br />
-    <NavLink href="categories" class="btn btn-outline-info">Look at Categories</NavLink>
+    <div class="row">
+        <div class="col-md-4">
+            <NavLink href="@pathToEditProfile" class="btn btn-warning">Edit Profile</NavLink><br /><br />
+            <NavLink href="@pathToEditPassword" class="btn btn-warning">Edit Password</NavLink><br /><br />
+            @if (isAdmin)
+            {
+                <NavLink href="@pathToEditRoles" class="btn btn-warning">Edit Roles</NavLink><br /><br />
+            }
+       </div>
+       <div class="col-md-4"></div>
+       <div class="col-md-4">
+           <NavLink href="@pathToCategories" class="btn btn-info">Categories</NavLink><br /><br />
+            @if(isAdmin)
+            {
+                <NavLink href="@pathToToDoList" class="btn btn-info">ToDoList</NavLink><br /><br />
+                <NavLink href="@pathToArchive" class="btn btn-info">Archive ToDoList</NavLink><br /><br />
+            }
+       </div>
+    </div>
 </Loader>
 
 @code {
     [CascadingParameter]
-    private Task<AuthenticationState> authStateTask { get; set; }
+    Task<AuthenticationState> authStateTask { get; set; }
+
+    [Parameter]
+    public string UserId { get; set; }
 
     bool isLoading = true;
+    bool isAdmin;
 
     User? user = new();
-    IEnumerable<ToDoItem> toDoList;
+    IEnumerable<ToDoItem> toDoList = Enumerable.Empty<ToDoItem>();
+    IEnumerable<string> roles = Enumerable.Empty<string>();
+
+    string pathToEditProfile => isAdmin ? $"users/{UserId}/edit" : "user/edit";
+    string pathToEditPassword => isAdmin ? $"users/{UserId}/edit-password" : "user/edit-password";
+    string pathToEditRoles => $"users/{UserId}/edit-roles";
+
+    string pathForAdmin() => isAdmin ? UserId : string.Empty;
+    string pathToCategories => $"{pathForAdmin()}/categories";
+    string pathToArchive => $"{pathForAdmin()}/archive";
+    string pathToToDoList => $"{pathForAdmin()}/to-do-list";
 
     protected override async Task OnParametersSetAsync()
     {
-        string userId = (await authStateTask).User.GetUserId();
-        user = await IUser.GetUserAsync(userId);
-        toDoList = await IToDoItem.GetToDoItemsAsync(userId);
+        var claims = (await authStateTask).User;
+        isAdmin = claims.IsInRole(Roles.Admin);
+
+        if(isAdmin && string.IsNullOrEmpty(UserId))
+        {
+            NavManager.NavigateTo("users");
+        }
+        else
+        {
+            if(!isAdmin)
+                UserId = claims.GetUserId();
+            user = await IUser.GetUserAsync(UserId);
+
+            toDoList = await IToDoItem.GetToDoItemsAsync(UserId);
+            roles = await IUser.GetRolesAsync(UserId);
+        }
+
         isLoading = false;
     }
 }

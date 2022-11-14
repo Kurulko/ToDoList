@@ -1,5 +1,5 @@
 ﻿@using System.Text.RegularExpressions
-@typeparam TypeModel
+@using ToDoList.Client.Extensions;
 
 <input class="form-control" @oninput="ChangeValue" placeholder="@Placeholder"/>
 
@@ -8,30 +8,14 @@
     public string Placeholder { get; set; }
 
     [Parameter]
-    public IEnumerable<TypeModel> Data { get; set; }
+    public string SearchText { get; set; }
 
     [Parameter]
-    public IEnumerable<TypeModel> Models { get; set; }
-
-    [Parameter]
-    public EventCallback<IEnumerable<TypeModel>> ModelsChanged { get; set; }
-    
-    [Parameter]
-    public string Search { get; set; }
-
-    [Parameter]
-    public EventCallback<string> SearchChanged { get; set; }
-
-    [Parameter]
-    public Func<TypeModel, string> FilterDirection { get; set; }
+    public EventCallback<string> SearchTextChanged { get; set; }
 
     async Task ChangeValue(ChangeEventArgs e)
     {
         string? value = e.Value as string;
-        Regex reg = new Regex($".*{value}.*", RegexOptions.IgnoreCase);
-        Models = (string.IsNullOrEmpty(value) ? Data : Data.Where(m => reg.IsMatch(FilterDirection(m)))).ToList();
-        
-        await ModelsChanged.InvokeAsync(Models);
-        await SearchChanged.InvokeAsync(value);
+        await SearchTextChanged.InvokeAsync(value);
     }
 }

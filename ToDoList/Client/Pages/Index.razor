@@ -2,10 +2,9 @@
 @page "/index"
 @attribute [Authorize]
 
-Hello
 <AuthorizeView>
     <Authorized>
-        <h1>Welcome to my web app, @context.User.Identity.Name</h1>
+        <h1>TodoList to organize work and life</h1>
     </Authorized>
     <Authorizing>
         <h1>Loading ...</h1>

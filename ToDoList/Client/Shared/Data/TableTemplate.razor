@@ -1,8 +1,8 @@
 ﻿@typeparam RowType 
 @using ToDoList.Client.Extensions;
 
-<Loader IsLoading="isLoading">
-    @if (TemporaryData.CountOrDefault() == 0)
+<Loader IsLoading="@(RowData is null)">
+    @if (RowData.CountOrDefault() == 0)
     {
         <center>
             <h3>It's empty :(</h3>
@@ -10,7 +10,7 @@
     }
     else
     {
-        <NavPages PageSize="@PageSize" Data="@TemporaryData">
+        <NavPages PageSize="@PageSize" Data="@RowData">
             <DataBody Context="currentPageData">
                 <table class="table table-hover table-bordered">
                     <thead>
@@ -44,21 +44,8 @@
     public RenderFragment<RowType> RowBody { get; set; }
 
     [Parameter]
-    public IEnumerable<RowType> RowData { get; set; }
+    public IEnumerable<RowType> RowData { get; set; } = Enumerable.Empty<RowType>();
 
     [Parameter]
     public int PageSize { get; set; }
-
-    [Parameter]
-    public IEnumerable<RowType> TemporaryData { get; set; }
-
-    [Parameter]
-    public EventCallback<IEnumerable<RowType>> TemporaryDataChanged { get; set; }
-
-    bool isLoading = true;
-    protected override void OnParametersSet()
-    {
-        TemporaryData = RowData;
-        isLoading = false;
-    }
 }

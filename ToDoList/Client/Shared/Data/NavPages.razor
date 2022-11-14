@@ -42,9 +42,9 @@
 
 
     [Parameter]
-    public IEnumerable<TypeModel> Data { get; set; }
+    public IEnumerable<TypeModel> Data { get; set; } = Enumerable.Empty<TypeModel>();
 
-    protected IEnumerable<TypeModel> CurrentPageData { get; set; }
+    protected IEnumerable<TypeModel> CurrentPageData { get; set; } = Enumerable.Empty<TypeModel>();
 
 
     int totalPages = 1;

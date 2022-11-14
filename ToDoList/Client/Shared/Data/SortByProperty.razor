@@ -10,10 +10,10 @@
     public RenderFragment ChildContent { get; set; }
 
     [Parameter]
-    public IEnumerable<ModelType> Data { get; set; }
+    public IEnumerable<ModelType> Models { get; set; } = Enumerable.Empty<ModelType>();
 
     [Parameter]
-    public EventCallback<IEnumerable<ModelType>> DataChanged { get; set; }
+    public EventCallback<IEnumerable<ModelType>> ModelsChanged { get; set; }
 
     [Parameter]
     public Func<ModelType, TKey> SortDirection { get; set; }
@@ -24,7 +24,7 @@
     async Task SortData()
     {
         Sort = Sort == Sort.Ascending ? Sort.Descending : Sort.Ascending;
-        Data = (Sort == Sort.Ascending ? Data.OrderBy(SortDirection) : Data.OrderByDescending(SortDirection)).ToList();
-        await DataChanged.InvokeAsync(Data);
+        Models = (Sort == Sort.Ascending ? Models.OrderBy(SortDirection) : Models.OrderByDescending(SortDirection)).ToList();
+        await ModelsChanged.InvokeAsync(Models);
     }
 }

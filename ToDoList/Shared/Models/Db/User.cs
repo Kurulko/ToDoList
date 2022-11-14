@@ -5,14 +5,15 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
+using System.ComponentModel.DataAnnotations;
 
-namespace ToDoList.Shared.Models.Db
+namespace ToDoList.Shared.Models.Db;
+
+public class User : IdentityUser
 {
-    public class User : IdentityUser
-    {
-        public IList<ToDoItem>? ToDoItems { get; set; }
-        //public IList<Subcategory>? Subcategories { get; set; }
-        public IList<Category>? Categories { get; set; }
-        public DateTime DateTime { get; set; }
-    }
+    [Display(Name = "Registered datetime")]
+    public DateTime DateTime { get; set; }
+
+    public IList<ToDoItem>? ToDoItems { get; set; }
+    public IList<Category>? Categories { get; set; }
 }

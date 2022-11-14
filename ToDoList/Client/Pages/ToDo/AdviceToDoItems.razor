@@ -1,28 +1,17 @@
-﻿@inject IToDoItemService IToDoItem
-@inject ICategoryService ICategory
-@page "/to-do-list/advice"
-@using ToDoList.Client.Extensions
+﻿@page "/to-do-list/advice"
+@page "/{UserId}/to-do-list/advice"
 @attribute [Authorize]
 
 <h3>Advice: To Do List</h3>
 <hr />
-<ToDoItems ToDoList="@toDoList"/>
+<ToDoItems Filter="@Filter" UserId="@UserId"/>
 
 @code {
-    [CascadingParameter]
-    private Task<AuthenticationState> authStateTask { get; set; }
+    [Parameter]
+    public string UserId { get; set; }
 
-    IEnumerable<ToDoItem> toDoList; 
-
-    protected override async Task OnParametersSetAsync()
-    {
-        string userId = (await authStateTask).User.GetUserId();
-        toDoList = (await IToDoItem.GetToDoItemsAsync(userId))
-            .Where(m => !m.IsCompleted)
+    IEnumerable<ToDoItem> Filter(IEnumerable<ToDoItem> toDoList)
+        => toDoList.Where(m => !m.IsCompleted)
             .OrderByDescending(m => m.Priority).ThenBy(m => m.Deadline).OrderByDescending(m => m.Complication)
             .ToList();
-        foreach (ToDoItem item in toDoList)
-            item.Category = await ICategory.GetCategoryAsync(userId, item.CategoryId);
-    }
-
 }

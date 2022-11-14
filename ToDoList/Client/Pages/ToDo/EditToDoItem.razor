@@ -1,5 +1,7 @@
-﻿@page "/to-do-list/edit/{id:long}"
+﻿@page "/to-do-list/edit/{ToDoItemId:long}"
+@page "/{UserId}/to-do-list/edit/{ToDoItemId:long}"
 @page "/to-do-list/create"
+@page "/{UserId}/to-do-list/create"
 @using ToDoList.Client.Extensions
 @inject NavigationManager NavManager
 @inject IToDoItemService IToDoItem
@@ -12,7 +14,7 @@
 <br />
 <Loader IsLoading="isLoading">
     <ShowError Error="@error">
-        <FormValidator Model="toDoItem" OnValidSubmit="HandleValidSubmit" Action="@(mode.ToString())" BackTo="to-do-list">
+        <FormValidator Model="toDoItem" OnValidSubmit="HandleValidSubmit" Action="@(mode.ToString())" BackTo="@backTo">
             <InputTextValidator @bind-Value="toDoItem.Name" For="@(() => toDoItem.Name)" /><br />
             <InputSelectValidator @bind-Value="toDoItem.CategoryId" For="@(() => toDoItem.CategoryId)"
                 Values="@categories.Select(c => new SelectValue<long>(c.Id,c.Name))" /><br />
@@ -28,32 +30,45 @@
 @code {
     string? error;
     bool isLoading = true;
+    bool isAdmin;
 
     [Parameter]
-    public long Id { get; set; }
+    public long ToDoItemId { get; set; }
+
+    [Parameter]
+    public string UserId { get; set; }
 
     [CascadingParameter]
-    private Task<AuthenticationState> authStateTask { get; set; }
-    string? userId;
+    Task<AuthenticationState> authStateTask { get; set; }
 
-    Mode mode => Id == 0 ? Mode.Create : Mode.Edit;
+    Mode mode => ToDoItemId == 0 ? Mode.Create : Mode.Edit;
 
     ToDoItem toDoItem = new();
-    IEnumerable<Category> categories;
+    IEnumerable<Category> categories = Enumerable.Empty<Category>();
+
+    string pathForAdmin() => isAdmin ? UserId : string.Empty;
+    string backTo => $"{pathForAdmin()}/to-do-list";
+
 
     protected override async Task OnParametersSetAsync()
     {
         try
         {
-            userId = (await authStateTask).User.GetUserId();
-            if (Id != 0)
-                toDoItem = await IToDoItem.GetToDoItemAsync(userId, Id);
-            categories = await ICategory.GetCategoriesAsync(userId);
+            var claims = (await authStateTask).User;
+            isAdmin = claims.IsInRole(Roles.Admin);
+
+            if(!isAdmin)
+                UserId = (await authStateTask).User.GetUserId();
+
+            if (mode == Mode.Edit)
+                toDoItem = await IToDoItem.GetToDoItemAsync(UserId, ToDoItemId);
+            categories = await ICategory.GetCategoriesAsync(UserId);
+
             isLoading = false;
         }
         catch
         {
-            NavManager.NavigateTo("to-do-list");
+            NavManager.NavigateTo(backTo);
         }
     }
 
@@ -63,11 +78,11 @@
         try
         {
             if (mode == Mode.Create)
-                await IToDoItem.AddToDoItemAsync(userId, toDoItem);
+                await IToDoItem.AddToDoItemAsync(new(UserId, toDoItem));
             else
-                await IToDoItem.UpdateToDoItem(userId, toDoItem);
+                await IToDoItem.UpdateToDoItem(new(UserId, toDoItem));
 
-            NavManager.NavigateTo("to-do-list");
+            NavManager.NavigateTo(backTo);
         }
         catch (Exception ex)
         {

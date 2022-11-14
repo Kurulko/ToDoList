@@ -3,63 +3,62 @@ using System.Security.Claims;
 using ToDoList.Shared.Models.Account;
 using ToDoList.Shared.Services;
 
-namespace ToDoList.Client.Services
+namespace ToDoList.Client.Services;
+
+public class CustomStateProvider : AuthenticationStateProvider
 {
-    public class CustomStateProvider : AuthenticationStateProvider
+    CurrentUser? currentUser;
+
+    readonly IAuthService auth;
+    public CustomStateProvider(IAuthService auth)
+        => this.auth = auth;
+
+    public override async Task<AuthenticationState> GetAuthenticationStateAsync()
     {
-        CurrentUser? currentUser;
-
-        readonly IAuthService auth;
-        public CustomStateProvider(IAuthService auth)
-            => this.auth = auth;
-
-        public override async Task<AuthenticationState> GetAuthenticationStateAsync()
+        ClaimsIdentity identity = new();
+        try
         {
-            ClaimsIdentity identity = new();
-            try
+            CurrentUser user = await GetCurrentUser();
+            if (user.IsAuthenticated)
             {
-                CurrentUser user = await GetCurrentUser();
-                if (user.IsAuthenticated)
-                {
-                    var claims = new[] { new Claim(ClaimTypes.Name, currentUser.UserName) }.Concat(currentUser.Claims.Select(c => new Claim(c.Key, c.Value)));
-                    identity = new ClaimsIdentity(claims, "Server authentication");
-                }
+                var claims = new[] { new Claim(ClaimTypes.Name, currentUser.UserName) }.Concat(currentUser.Claims.Select(c => new Claim(c.Key, c.Value)));
+                identity = new ClaimsIdentity(claims, "Server authentication");
             }
-            catch (HttpRequestException ex)
-            {
-                Console.WriteLine("Request failed:" + ex.ToString());
-            }
-            return new AuthenticationState(new ClaimsPrincipal(identity));
         }
-
-        async Task<CurrentUser> GetCurrentUser()
+        catch (HttpRequestException ex)
         {
-            if (currentUser is not null && currentUser.IsAuthenticated)
-                return currentUser;
-            currentUser = await (auth as AuthManager).CurrentUserInfo();
-            return currentUser;
+            Console.WriteLine("Request failed:" + ex.ToString());
         }
-
-        public async Task Login(LoginModel model)
-        {
-            await auth.LoginUserAsync(model);
-            Notify();
-        }
-
-        public async Task Register(RegisterModel model)
-        {
-            await auth.RegisterUserAsync(model);
-            Notify();
-        }
-
-        public async Task Logout()
-        {
-            await auth.LogoutUserAsync();
-            currentUser = null;
-            Notify();
-        }
-
-        void Notify()
-            => NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
+        return new AuthenticationState(new ClaimsPrincipal(identity));
     }
+
+    async Task<CurrentUser> GetCurrentUser()
+    {
+        if (currentUser is not null && currentUser.IsAuthenticated)
+            return currentUser;
+        currentUser = await (auth as AuthManager).CurrentUserInfo();
+        return currentUser;
+    }
+
+    public async Task Login(LoginModel model)
+    {
+        await auth.LoginUserAsync(model);
+        Notify();
+    }
+
+    public async Task Register(RegisterModel model)
+    {
+        await auth.RegisterUserAsync(model);
+        Notify();
+    }
+
+    public async Task Logout()
+    {
+        await auth.LogoutUserAsync();
+        currentUser = null;
+        Notify();
+    }
+
+    void Notify()
+        => NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
 }

@@ -1,160 +1,85 @@
 ﻿@page "/categories"
+@page "/{UserId}/categories"
+@inject NavigationManager NavManager
 @inject ICategoryService ICategory
 @attribute [Authorize]
 @using ToDoList.Client.Extensions;
+@using System.Text.RegularExpressions
 
 <h3>Categories</h3>
 <hr />
-@if (!isCreate)
-{
-    <button class="btn btn-outline-primary" @onclick="@(() => isCreate = !isCreate)">Create</button>
-}
-else
-{
-    <div class="row">
-        <div class="col-md-9">
-            <ShowError Error="@error">
-                <FormValidator Model="category" Action="Create" BackTo="@null" OnValidSubmit="@(async () => {
-                            await CreateCategory();
-                            if(error is null)
-                                isCreate = !isCreate;
-                            await SetCategoriesAsync();
-                        })">
-                    <InputTextValidator @bind-Value="category.Name" For="@(() => category.Name)" />
-                </FormValidator>
-            </ShowError>
-            <button class="btn btn-outline-warning" @onclick="@(() => isCreate = !isCreate)">Cancel</button>
-        </div>
-    </div>
-
-}
-
-<br />
 <Loader IsLoading="isLoading">
-    @if (!string.IsNullOrEmpty(searchValue) || temporaryData.CountOrDefault() != 0)
-    {
-        <div class="row">
-            <div class="col-md-3"></div>
-            <div class="col-md-9">
-                <SearchFilter @bind-Models="temporaryData" @bind-Search="@searchValue" Data="@categories"
-                          FilterDirection="@((Category c) => c.Name)" Placeholder="Search by name" />
-            </div>
-        </div>
-        <br />
-    }
-
-    <FilterTable RowData="@categories" PageSize="10" @bind-TemporaryData="@temporaryData" Sorts="@sorts">
-        <HeaderBodyEnd><th></th></HeaderBodyEnd>
-        <RowBody Context="c">
-            <td>
-                @{
-                    long categoryId = c.Id;
-                }
-                @if (!isEdit[categoryId])
-                {
-                    @c.Name
-                }
-                else
-                {
-                    <ShowError Error="@error">
-                        <FormValidator Model="c" Action="Edit" BackTo="@null" OnValidSubmit="@(async () => {
-                            await EditCategory(c);
-                            if(error is null)
-                                isEdit[categoryId] = !isEdit[categoryId];
-                            await SetCategoriesAsync();
-                        })">
-                            <InputTextValidator @bind-Value="c.Name" For="@(() => c.Name)" />
-                        </FormValidator>
-                    </ShowError>
-                    <button class="btn btn-outline-warning" @onclick="@(() => isEdit[categoryId] = !isEdit[categoryId])">Cancel</button>
-
-                }
-            </td>
-            <td>
-                @if (!isEdit[categoryId])
-                {
-                    <button class="btn btn-outline-warning" @onclick="@(() => isEdit[categoryId] = !isEdit[categoryId])">
-                        Edit
-                    </button>
-                }
-                <button class="btn btn-outline-danger" @onclick="@(async() => await DeleteCategory(c.Id))">
-                    Delete
-                </button>
-            </td>
-        </RowBody>
-    </FilterTable>
+    <SimpleDataEdit @bind-Models="categories" TemporaryData="temporary" SetModelsAsync="@GetCategoriesAsync" GetName="@((Category c) => c.Name)" GetId="@((Category c) => c.Id)" Sorts="@sorts"
+            EditModelHandle="EditCategory" CreateModelHandle="CreateCategory" DeleteModelHandle="DeleteCategory" TypeId="long" TypeModel="Category">
+        <EditFragment Context="c">
+            <InputTextValidator @bind-Value="c.Name" For="@(() => c.Name)" />
+       </EditFragment>
+        <ContentAfterCreateBeforeEdit>
+            @if (!string.IsNullOrEmpty(searchText) || categories.CountOrDefault() != 0)
+            {
+                <div class="row">
+                    <div class="col-md-3"></div>
+                    <div class="col-md-9">
+                        <SearchFilter @bind-SearchText="@searchText" Placeholder="@("Search by name")" />
+                  </div>
+                </div>
+                <br />
+            }
+        </ContentAfterCreateBeforeEdit>
+    </SimpleDataEdit>
 </Loader>
 
 @code {
     [CascadingParameter]
     Task<AuthenticationState> authStateTask { get; set; }
+    
+    [Parameter]
+    public string UserId { get; set; }
 
-    IEnumerable<Category> categories;
+    IEnumerable<Category> categories = Enumerable.Empty<Category>();
+    IEnumerable<Category> temporary = Enumerable.Empty<Category>();
 
-    IEnumerable<Category> temporaryData = Enumerable.Empty<Category>();
+    IEnumerable<SortModel<Category>> sorts = new List<SortModel<Category>>() { new(m => m.Name, "Name") };
 
-    IEnumerable<SortModel<Category>> sorts;
-
-    string? searchValue;
     bool isLoading = true;
-
-    string userId;
-    string? error;
+    bool isAdmin;
 
     protected override async Task OnParametersSetAsync()
     {
-        sorts = new List<SortModel<Category>>() { new(m => m.Name, "Name") };
-        userId = (await authStateTask).User.GetUserId();
-        await SetCategoriesAsync();
+        var claims = (await authStateTask).User;
+        isAdmin = claims.IsInRole(Roles.Admin);
+
+        if(isAdmin && string.IsNullOrEmpty(UserId))
+            NavManager.NavigateTo("users");
+        else if(!isAdmin)
+            UserId = claims.GetUserId();
+
+        temporary = categories = await GetCategoriesAsync();
         isLoading = false;
     }
 
-    async Task SetCategoriesAsync()
-    {
-        temporaryData = categories = await ICategory.GetCategoriesAsync(userId);
-        isEdit = categories.ToDictionary(k => k.Id, v => false);
-    }
+    async Task<IEnumerable<Category>> GetCategoriesAsync()
+        => await ICategory.GetCategoriesAsync(UserId);
 
-    Dictionary<long, bool> isEdit;
     async Task EditCategory(Category category)
-    {
-        error = null;
-        try
-        {
-            await ICategory.UpdateCategoryAsync(userId, category);
-        }
-        catch (Exception ex)
-        {
-            error = ex.Message;
-        }
-    }
+        => await ICategory.UpdateCategoryAsync(new(UserId, category));
 
-    bool isCreate = false;
-    Category category = new();
-    async Task CreateCategory()
-    {
-        error = null;
-        try
-        {
-            await ICategory.AddCategoryAsync(userId, category);
-            category = new();
-        }
-        catch (Exception ex)
-        {
-            error = ex.Message;
-        }
-    }
+    async Task CreateCategory(Category category)
+        => await ICategory.AddCategoryAsync(new(UserId, category));
 
     async Task DeleteCategory(long id)
+        => await ICategory.DeleteCategoryAsync(UserId, id);
+
+    string? searchText;
+    protected override bool ShouldRender()
     {
-        try
-        {
-            await ICategory.DeleteCategoryAsync(userId, id);
-            await SetCategoriesAsync();
-        }
-        catch (Exception ex)
-        {
-            error = ex.Message;
-        }
+        temporary = string.IsNullOrEmpty(searchText) ? categories 
+            : categories.Where(IsValidForSearchText).ToList();
+        return true;
     }
+    bool IsValidForSearchText(Category category)
+    {
+        Regex reg = new($".*{searchText}.*", RegexOptions.IgnoreCase);
+        return reg.IsMatch(category.Name);
+    } 
 }

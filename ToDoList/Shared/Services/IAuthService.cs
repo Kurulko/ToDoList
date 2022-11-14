@@ -5,12 +5,11 @@ using System.Text;
 using System.Threading.Tasks;
 using ToDoList.Shared.Models.Account;
 
-namespace ToDoList.Shared.Services
+namespace ToDoList.Shared.Services;
+
+public interface IAuthService
 {
-    public interface IAuthService
-    {
-        Task LoginUserAsync(LoginModel model);
-        Task RegisterUserAsync(RegisterModel model);
-        Task LogoutUserAsync();
-    }
+    Task LoginUserAsync(LoginModel model);
+    Task RegisterUserAsync(RegisterModel model);
+    Task LogoutUserAsync();
 }

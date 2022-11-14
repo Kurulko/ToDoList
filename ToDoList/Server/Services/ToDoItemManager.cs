@@ -4,95 +4,85 @@ using System.Security.Claims;
 using ToDoList.Server.Models;
 using ToDoList.Shared.Models.Db;
 using ToDoList.Shared.Services;
+using ToDoList.Shared.Models;
 
-namespace ToDoList.Server.Services
+namespace ToDoList.Server.Services;
+
+public class ToDoItemManager : IToDoItemService
 {
-    public class ToDoItemManager : IToDoItemService
+    readonly ToDoListContext db;
+    public ToDoItemManager(ToDoListContext db)
+        => this.db = db;
+
+    public Task AddToDoItemAsync(ModelWithUserId<ToDoItem> model)
     {
-        readonly ToDoListContext db;
-        public ToDoItemManager(ToDoListContext db)
-            => this.db = db;
-
-        public async Task AddToDoItemAsync(string userId, ToDoItem item)
+        try
         {
-            try
-            {
-                item.UserId = userId;
-                db.ToDoItems.Add(item);
-                db.SaveChanges();
-            }
-            catch
-            {
-                throw;
-            }
+            ToDoItem item = model.Model;
+            item.UserId = model.UserId;
+            db.ToDoItems.Add(item);
+            db.SaveChanges();
+            return Task.CompletedTask;
         }
-
-        public async Task DeleteToDoItem(string userId, long toDoItemId)
+        catch
         {
-            try
-            {
-                ToDoItem item = await db.ToDoItems.FirstAsync(i => i.Id == toDoItemId && i.UserId == userId);
-                db.ToDoItems.Remove(item);
-                db.SaveChanges();
-            }
-            catch
-            {
-                throw;
-            }
+            throw;
         }
+    }
 
-        public async Task<ToDoItem> GetToDoItemAsync(string userId, long toDoItemId)
+    public async Task DeleteToDoItem(string userId, long toDoItemId)
+    {
+        try
         {
-            try
-            {
-                ToDoItem? item = await db.ToDoItems/*.Include(i => i.Category)*/.FirstOrDefaultAsync(i => i.UserId == userId && i.Id == toDoItemId);
-                if (item is not null)
-                {
-                    //item.User = null;
-                    //item.Category.ToDoItems = null;
-                    //item.Category.User = null;
-                    return item;
-                }
-                throw new ArgumentException($"There isn't such ToDoItem.Id = {toDoItemId} in the db");
-            }
-            catch
-            {
-                throw;
-            }
+            ToDoItem item = await db.ToDoItems.FirstAsync(i => i.Id == toDoItemId && i.UserId == userId);
+            db.ToDoItems.Remove(item);
+            db.SaveChanges();
         }
-
-        public async Task<IEnumerable<ToDoItem>> GetToDoItemsAsync(string userId)
+        catch
         {
-            try
-            {
-                return db.ToDoItems./*Include(i => i.Category).*/Where(i => i.UserId == userId).ToList();
-                    //.Select(i =>
-                    //{
-                    //    i.User = null;
-                    //    i.Category.ToDoItems = null;
-                    //    i.Category.User = null;
-                    //    return i;
-                    //});
-            }
-            catch
-            {
-                throw;
-            }
+            throw;
         }
+    }
 
-        public async Task UpdateToDoItem(string userId, ToDoItem item)
+    public async Task<ToDoItem> GetToDoItemAsync(string userId, long toDoItemId)
+    {
+        try
         {
-            try
-            {
-                item.UserId = userId;
-                item.Category = db.Categories.First(c => c.Id == item.CategoryId && c.UserId == userId);
-                db.ToDoItems.Update(item);
-                db.SaveChanges();
-            }
-            catch
-            {
-                throw;
-            }
+            return await db.ToDoItems.FirstAsync(i => i.UserId == userId && i.Id == toDoItemId);
+        }
+        catch
+        {
+            throw;
+        }
+    }
+
+    public Task<IEnumerable<ToDoItem>> GetToDoItemsAsync(string userId)
+    {
+        try
+        {
+            return Task.FromResult(db.ToDoItems.Where(i => i.UserId == userId).AsEnumerable());
+        }
+        catch
+        {
+            throw;
+        }
+    }
+
+    public Task UpdateToDoItem(ModelWithUserId<ToDoItem> model)
+    {
+        try
+        {
+            string userId = model.UserId;
+            ToDoItem item = model.Model;
+            item.UserId = userId;
+            item.Category = db.Categories.First(c => c.Id == item.CategoryId && c.UserId == userId);
+            db.ToDoItems.Update(item);
+            db.SaveChanges();
+            return Task.CompletedTask;
+        }
+        catch
+        {
+            throw;
         }
     }
 }

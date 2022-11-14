@@ -1,8 +1,10 @@
-﻿@page "/to-do-list/details/{id:long}"
+﻿@page "/to-do-list/details/{ToDoItemId:long}"
+@page "/{UserId}/to-do-list/details/{ToDoItemId:long}"
 @using ToDoList.Shared.Models.Db
 @using ToDoList.Shared.Services
 @using ToDoList.Client.Extensions
 @inject IToDoItemService IToDoItem
+@inject ICategoryService ICategory
 @inject NavigationManager NavManager
 @attribute [Authorize]
 
@@ -36,13 +38,13 @@
             <tr>
                 <th>Is Completed?</th>
                 <td>
-                    @toDoItem.IsCompleted
+                    @(toDoItem.IsCompleted ? "Yes" : "No")
                     <button class="btn btn-outline-warning" @onclick="ChangeIsCompleted">Change</button>
                 </td>
             </tr>
             <tr>
                 <td colspan="2">
-                    <NavLink href="@($"to-do-list/edit/{toDoItem.Id}")" class="btn btn-outline-warning">Edit</NavLink>
+                    <NavLink href="@pathToEdit" class="btn btn-outline-warning">Edit</NavLink>
                     <button class="btn btn-outline-danger" @onclick="DeleteToDoItem">Delete</button>
                 </td>
             </tr>
@@ -50,45 +52,57 @@
     </table>
 </Loader>
 <br />
-<NavLink href="to-do-list" class="btn btn-outline-info">Back</NavLink>
+<NavLink href="@backTo" class="btn btn-outline-info">Back</NavLink>
 
 
 @code {
     [Parameter]
-    public long Id { get; set; }
+    public long ToDoItemId { get; set; }
 
     [CascadingParameter]
-    private Task<AuthenticationState> authStateTask { get; set; }
+    Task<AuthenticationState> authStateTask { get; set; }
+
+    [Parameter]
+    public string UserId { get; set; }
 
     ToDoItem? toDoItem = new();
-    string userId;
-
     bool isLoading = true;
+    bool isAdmin;
+
+    string pathForAdmin() => isAdmin ? UserId : string.Empty;
+    string backTo => $"{pathForAdmin()}/to-do-list";
+    string pathToEdit => $"{pathForAdmin()}/to-do-list/edit/{ToDoItemId}";
 
     protected override async Task OnParametersSetAsync()
     {
         try
         {
-            userId = (await authStateTask).User.GetUserId();
-            toDoItem = await IToDoItem.GetToDoItemAsync(userId, Id);
+            var claims = (await authStateTask).User;
+            isAdmin = claims.IsInRole(Roles.Admin);
+
+            if(!isAdmin)
+                UserId = (await authStateTask).User.GetUserId();
+
+            toDoItem = await IToDoItem.GetToDoItemAsync(UserId, ToDoItemId);
+            toDoItem.Category = await ICategory.GetCategoryAsync(UserId, toDoItem.CategoryId);
+
             isLoading = false;
         }
         catch
         {
-            NavManager.NavigateTo("to-do-list");
+            NavManager.NavigateTo(backTo);
         }
     }
 
     async Task ChangeIsCompleted()
     {
         toDoItem.IsCompleted = !toDoItem.IsCompleted;
-        await IToDoItem.UpdateToDoItem(userId, toDoItem);
-
+        await IToDoItem.UpdateToDoItem(new(UserId, toDoItem));
     }
 
     async Task DeleteToDoItem()
     {
-        await IToDoItem.DeleteToDoItem(userId, Id);
-        NavManager.NavigateTo("to-do-list");
+        await IToDoItem.DeleteToDoItem(UserId, ToDoItemId);
+        NavManager.NavigateTo(backTo);
     }
 }

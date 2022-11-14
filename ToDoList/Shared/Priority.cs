@@ -4,10 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ToDoList.Shared
+namespace ToDoList.Shared;
+
+public enum Priority
 {
-    public enum Priority
-    {
-        Smallest, Small, Medium, High, Highest
-    }
+    Smallest, Small, Medium, High, Highest
 }

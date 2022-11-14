@@ -2,84 +2,83 @@
 using ToDoList.Server.Models;
 using ToDoList.Shared.Models.Db;
 using ToDoList.Shared.Services;
+using ToDoList.Shared.Models;
 
-namespace ToDoList.Server.Services
+namespace ToDoList.Server.Services;
+
+public class CategoryManager : ICategoryService
 {
-    public class CategoryManager : ICategoryService
+    readonly ToDoListContext db;
+    public CategoryManager(ToDoListContext db)
+        => this.db = db;
+
+    public Task AddCategoryAsync(ModelWithUserId<Category> model)
     {
-        readonly ToDoListContext db;
-        public CategoryManager(ToDoListContext db)
-            => this.db = db;
-
-        public async Task AddCategoryAsync(string userId, Category category)
+        try
         {
-            try
-            {
-                category.UserId = userId;
-                db.Categories.Add(category);
-                db.SaveChanges();
-            }
-            catch
-            {
-                throw;
-            }
+            Category category = model.Model;
+            category.UserId = model.UserId;
+            db.Categories.Add(category);
+            db.SaveChanges();
+            return Task.CompletedTask;
         }
-
-        public async Task DeleteCategoryAsync(string userId, long categoryId)
+        catch
         {
-            try
-            {
-                Category category = await db.Categories.FirstAsync(c => c.Id == categoryId && c.UserId == userId);
-                db.Categories.Remove(category);
-                db.SaveChanges();
-            }
-            catch
-            {
-                throw;
-            }
+            throw;
         }
+    }
 
-        public async Task<IEnumerable<Category>> GetCategoriesAsync(string userId)
+    public async Task DeleteCategoryAsync(string userId, long categoryId)
+    {
+        try
         {
-            try
-            {
-                return db.Categories.Where(c => c.UserId == userId).ToList();
-                    //.Select(c =>
-                    //{
-                    //    c.User = null;
-                    //    return c;
-                    //}); ;
-            }
-            catch
-            {
-                throw;
-            }
+            Category category = await db.Categories.FirstAsync(c => c.Id == categoryId && c.UserId == userId);
+            db.Categories.Remove(category);
+            db.SaveChanges();
         }
-
-        public async Task<Category> GetCategoryAsync(string userId, long categoryId)
+        catch
         {
-            try
-            {
-                return await db.Categories.FirstAsync(c => c.UserId == userId && c.Id == categoryId);
-            }
-            catch
-            {
-                throw;
-            }
+            throw;
         }
+    }
 
-        public async Task UpdateCategoryAsync(string userId, Category category)
+    public Task<IEnumerable<Category>> GetCategoriesAsync(string userId)
+    {
+        try
         {
-            try
-            {
-                category.UserId = userId;
-                db.Categories.Update(category);
-                db.SaveChanges();
-            }
-            catch
-            {
-                throw;
-            }
+            return Task.FromResult(db.Categories.Where(c => c.UserId == userId).AsEnumerable());
+        }
+        catch
+        {
+            throw;
+        }
+    }
+
+    public async Task<Category> GetCategoryAsync(string userId, long categoryId)
+    {
+        try
+        {
+            return await db.Categories.FirstAsync(c => c.UserId == userId && c.Id == categoryId);
+        }
+        catch
+        {
+            throw;
+        }
+    }
+
+    public Task UpdateCategoryAsync(ModelWithUserId<Category> model)
+    {
+        try
+        {
+            Category category = model.Model;
+            category.UserId = model.UserId;
+            db.Categories.Update(category);
+            db.SaveChanges();
+            return Task.CompletedTask;
+        }
+        catch
+        {
+            throw;
         }
     }
 }

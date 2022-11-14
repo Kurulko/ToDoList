@@ -1,0 +1,70 @@
+﻿@page "/roles"
+@inject NavigationManager NavManager
+@inject IRoleService IRole
+@attribute [Authorize(Roles = ToDoList.Shared.Roles.Admin)]
+@using Microsoft.AspNetCore.Identity
+@using ToDoList.Client.Extensions;
+@using System.Text.RegularExpressions
+
+<h3>Roles</h3>
+<hr />
+<Loader IsLoading="isLoading">
+    <SimpleDataEdit @bind-Models="roles" TemporaryData="temporary" SetModelsAsync="@GetRolesAsync" GetName="@((IdentityRole r) => r.Name)" GetId="@((IdentityRole r) => r.Id)" Sorts="@sorts"
+            EditModelHandle="EditRole" CreateModelHandle="CreateRole" DeleteModelHandle="DeleteRole" TypeId="string" TypeModel="IdentityRole">
+        <EditFragment Context="m">
+            <InputTextValidator @bind-Value="m.Name" For="@(() => m.Name)" />
+       </EditFragment>
+        <ContentAfterCreateBeforeEdit>
+            @if (!string.IsNullOrEmpty(searchText) || temporary.CountOrDefault() != 0)
+            {
+                <div class="row">
+                    <div class="col-md-3"></div>
+                    <div class="col-md-9">
+                       <SearchFilter @bind-SearchText="@searchText" Placeholder="@("Search by name")" />
+                    </div>
+                </div>
+                <br />
+            }
+        </ContentAfterCreateBeforeEdit>
+    </SimpleDataEdit>
+</Loader>
+
+@code {
+    IEnumerable<IdentityRole> roles = Enumerable.Empty<IdentityRole>();
+    IEnumerable<IdentityRole> temporary = Enumerable.Empty<IdentityRole>();
+
+    IEnumerable<SortModel<IdentityRole>> sorts = new List<SortModel<IdentityRole>>(){new(r => r.Name, "Name")};
+
+    bool isLoading = true;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        temporary = roles = await GetRolesAsync();
+        isLoading = false;
+    }
+
+    async Task<IEnumerable<IdentityRole>> GetRolesAsync()
+        => await IRole.GetRolesAsync();
+
+    async Task EditRole(IdentityRole role)
+        => await IRole.UpdateRoleAsync(role);
+
+    async Task CreateRole(IdentityRole role)
+        => await IRole.CreateRoleAsync(role);
+
+    async Task DeleteRole(string id)
+        => await IRole.DeleteRoleAsync(id);
+
+    string? searchText;
+    protected override bool ShouldRender()
+    {
+        temporary = string.IsNullOrEmpty(searchText) ? roles 
+            : roles.Where(IsValidForSearchText).ToList();
+        return true;
+    }
+    bool IsValidForSearchText(IdentityRole role)
+    {
+        Regex reg = new($".*{searchText}.*", RegexOptions.IgnoreCase);
+        return reg.IsMatch(role.Name);
+    } 
+}

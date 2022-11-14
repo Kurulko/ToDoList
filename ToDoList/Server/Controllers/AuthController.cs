@@ -4,67 +4,38 @@ using Microsoft.AspNetCore.Mvc;
 using ToDoList.Shared.Models.Account;
 using ToDoList.Shared.Services;
 
-namespace ToDoList.Server.Controllers
+namespace ToDoList.Server.Controllers;
+
+public class AuthController : ApiController
 {
-    [ApiController]
-    [Route("api/[controller]/[action]")]
-    public class AuthController : ControllerBase
+    readonly IAuthService accManager;
+    public AuthController(IAuthService accManager)
+        => this.accManager = accManager;
+
+    [HttpPost(nameof(Register))]
+    public async Task<IActionResult> Register(RegisterModel register)
+        => await ReturnOkIfEverithingIsGood(async () => await accManager.RegisterUserAsync(register));
+
+
+    [HttpPost(nameof(Login))]
+    public async Task<IActionResult> Login(LoginModel login)
+        => await ReturnOkIfEverithingIsGood(async () => await accManager.LoginUserAsync(login));
+
+
+    [Authorize]
+    [HttpPost(nameof(Logout))]
+    public async Task<IActionResult> Logout()
+        => await ReturnOkIfEverithingIsGood(async () => await accManager.LogoutUserAsync());
+
+    [HttpGet(nameof(CurrentUserInfo))]
+    public Task<CurrentUser> CurrentUserInfo()
     {
-        readonly IAuthService accManager;
-        public AuthController(IAuthService accManager)
-            => this.accManager = accManager;
-
-        [HttpPost]
-        public async Task<IActionResult> Register(RegisterModel register)
+        var currentUser = new CurrentUser
         {
-            try
-            {
-                await accManager.RegisterUserAsync(register);
-                return Ok();
-            }
-            catch(Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> Login(LoginModel login)
-        {
-            try
-            {
-                await accManager.LoginUserAsync(login);
-                return Ok();
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
-
-
-        [Authorize, HttpPost]
-        public async Task<IActionResult> Logout()
-        {
-            try
-            {
-                await accManager.LogoutUserAsync();
-                return Ok();
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
-
-
-        [HttpGet]
-        public CurrentUser CurrentUserInfo()
-            => new CurrentUser
-            {
-                IsAuthenticated = User.Identity.IsAuthenticated,
-                UserName = User.Identity.Name,
-                Claims = User.Claims.ToDictionary(c => c.Type, c => c.Value)
-            };
+            IsAuthenticated = User.Identity.IsAuthenticated,
+            UserName = User.Identity.Name,
+            Claims = User.Claims.Select(c => new KeyValuePair<string, string>(c.Type, c.Value)).ToList()
+        };
+        return Task.FromResult(currentUser);
     }
 }

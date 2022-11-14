@@ -3,10 +3,25 @@
 <BaseLayout Links="@links">@Body</BaseLayout>
 
 @code {
-    IEnumerable<(string cssClass, string href, string name)> links = new List<(string, string, string)>() {
-        ("oi oi-home", "index", "Home"),
-        ("oi oi-circle-x", "to-do-list", "To Do List"),
-        ("oi oi-thumb-up", "/to-do-list/advice", "Advice"),
-        ("oi oi-circle-check", "archive", "Archive")
-    };
+    [CascadingParameter]
+    Task<AuthenticationState> authStateTask { get; set; }
+
+    IEnumerable<(string cssClass, string href, string name)> links = Enumerable.Empty<(string, string, string)>();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        bool isAdmin = (await authStateTask).User.IsInRole(Roles.Admin);
+        links = isAdmin ? 
+            new List<(string, string, string)>() {
+                ("oi oi-people", "users", "Users"),
+                ("oi oi-briefcase", "roles", "Roles"),
+            }
+            :
+            new List<(string, string, string)>() {
+                ("oi oi-home", "index", "Home"),
+                ("oi oi-circle-x", "to-do-list", "To Do List"),
+                ("oi oi-thumb-up", "/to-do-list/advice", "Advice"),
+                ("oi oi-circle-check", "archive", "Archive")
+            };
+    }
 }
